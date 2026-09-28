@@ -10,6 +10,8 @@ from starlette.requests import Request
 
 from app.api.dependencias import dep_comprobar_preparacion, dep_settings, dep_sondas
 from app.core.config import Settings
+from app.infrastructure.db.bootstrap.migraciones import revision_head
+from app.infrastructure.db.sonda_migraciones import SondaMigraciones
 from app.infrastructure.db.sonda_postgres import SondaPostgres
 from app.main import crear_app
 from tests.soporte import JWT_SECRET_PRUEBA, settings_prueba
@@ -72,11 +74,18 @@ def _peticion(app: FastAPI) -> Request:
     return Request({"type": "http", "app": app, "headers": []})
 
 
-async def test_arranque_dependencias_reales_usan_sonda_postgres() -> None:
+async def test_arranque_dependencias_reales_usan_sondas_postgres_y_migraciones() -> None:
     app = crear_app(settings_prueba())
     async with app.router.lifespan_context(app):
         sondas = dep_sondas(_peticion(app))
-    assert [type(sonda) for sonda in sondas] == [SondaPostgres]
+    assert [type(sonda) for sonda in sondas] == [SondaPostgres, SondaMigraciones]
+
+
+async def test_arranque_ciclo_de_vida_guarda_la_revision_head() -> None:
+    app = crear_app(settings_prueba())
+    async with app.router.lifespan_context(app):
+        revision = app.state.revision_head
+    assert revision == revision_head()
 
 
 async def test_arranque_caso_de_uso_recibe_timeout_de_settings() -> None:

@@ -145,6 +145,7 @@ def test_cargar_settings_invalida_nombra_los_campos(monkeypatch: pytest.MonkeyPa
         "APP_MASTER_KEY",
         "JWT_SECRET",
         "CORS_ORIGENES",
+        "DB_ROLES_SEPARADOS",
     }
 
 

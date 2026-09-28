@@ -130,7 +130,14 @@ def test_produccion_todo_invalido_nombra_todos_los_campos_sin_valores(
         cargar_settings()
     campos = {campo for campo, _ in error.value.errores}
     assert (campos, SECRETO_VISIBLE[:5] in str(error.value)) == (
-        {"DEBUG", "DATABASE_URL", "APP_MASTER_KEY", "JWT_SECRET", "CORS_ORIGENES"},
+        {
+            "DEBUG",
+            "DATABASE_URL",
+            "APP_MASTER_KEY",
+            "JWT_SECRET",
+            "CORS_ORIGENES",
+            "DB_ROLES_SEPARADOS",
+        },
         False,
     )
 

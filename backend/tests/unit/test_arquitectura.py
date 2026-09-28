@@ -1,4 +1,4 @@
-"""Reglas de dependencias hexagonales verificadas sobre el AST de `app/` (CA14)."""
+"""Reglas de dependencias hexagonales verificadas sobre el AST de `app/` (CA14 E0.1, CA18 E0.2)."""
 
 import ast
 import sys
@@ -16,7 +16,16 @@ PROHIBIDOS_EN_APLICACION: Final = (
     "structlog",
     "app.api",
     "app.infrastructure",
+    "alembic",
+    "psycopg",
+    "procrastinate",
+    "langgraph",
+    "argon2",
+    "uuid_utils",
+    "asyncpg",
 )
+SOLO_EN_INFRAESTRUCTURA: Final = ("alembic", "psycopg", "procrastinate", "langgraph.checkpoint")
+UNICO_ESCRITOR_STDERR: Final = Path("infrastructure") / "avisos" / "stderr.py"
 SDKS_IA: Final = (
     "anthropic",
     "openai",
@@ -107,3 +116,43 @@ def test_arquitectura_resolver_relativo_sube_niveles() -> None:
     assert _resolver_relativo("app.application.use_cases.x", False, 2, "ports") == (
         "app.application.ports"
     )
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    [r for r in _archivos("") if r.relative_to(RAIZ_APP).parts[0] != "infrastructure"],
+    ids=lambda ruta: str(ruta.relative_to(RAIZ_APP)),
+)
+def test_arquitectura_librerias_de_bd_solo_en_infraestructura(ruta: Path) -> None:
+    fuera = {i for i in _importaciones(ruta) for p in SOLO_EN_INFRAESTRUCTURA if _coincide(i, p)}
+    assert fuera == set()
+
+
+def _usa_sys_stderr(ruta: Path) -> bool:
+    """Indica si el archivo referencia `sys.stderr` o importa `stderr` de `sys`."""
+    for nodo in ast.walk(ast.parse(ruta.read_text(encoding="utf-8"))):
+        if (
+            isinstance(nodo, ast.Attribute)
+            and nodo.attr in {"stderr", "__stderr__"}
+            and isinstance(nodo.value, ast.Name)
+            and nodo.value.id == "sys"
+        ):
+            return True
+        if (
+            isinstance(nodo, ast.ImportFrom)
+            and nodo.module == "sys"
+            and any(alias.name in {"stderr", "__stderr__"} for alias in nodo.names)
+        ):
+            return True
+    return False
+
+
+def test_arquitectura_solo_el_aviso_de_operador_escribe_en_stderr() -> None:
+    escritores = [r.relative_to(RAIZ_APP) for r in _archivos("") if _usa_sys_stderr(r)]
+    assert escritores == [UNICO_ESCRITOR_STDERR]
+
+
+def test_arquitectura_detector_de_stderr_reconoce_from_import(tmp_path: Path) -> None:
+    archivo = tmp_path / "x.py"
+    archivo.write_text("from sys import stderr\n", encoding="utf-8")
+    assert _usa_sys_stderr(archivo)

@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
-# Contexto de build: raíz del repo (ver .dockerignore). Solo se copian pyproject, uv.lock y backend/app.
+# Contexto de build: raíz del repo (ver .dockerignore). Solo se copian pyproject, uv.lock, backend/app
+# y backend/alembic (migraciones que ejecuta `python -m app.bootstrap`; sin alembic.ini).
 FROM python:3.12-slim AS builder
 # uv fijado por versión (en producción se fija también por digest, E1.12).
 COPY --from=ghcr.io/astral-sh/uv:0.8.17 /uv /uvx /bin/
@@ -9,6 +10,7 @@ COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 # --locked: falla si uv.lock no corresponde a pyproject.toml; sin fallback que lo ignore.
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-install-project
 COPY backend/app ./app
+COPY backend/alembic ./alembic
 
 FROM python:3.12-slim AS runtime
 RUN groupadd -g 10001 app && useradd -u 10001 -g app -M -s /usr/sbin/nologin app

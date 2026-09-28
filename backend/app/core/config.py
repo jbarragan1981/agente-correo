@@ -6,6 +6,7 @@ y nunca incluyen el valor recibido.
 
 import base64
 import binascii
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Literal
@@ -24,6 +25,10 @@ BYTES_CLAVE_MAESTRA = 32
 BYTES_MINIMOS_JWT = 32
 ESQUEMAS_CORS = frozenset({"http", "https"})
 OBLIGATORIA_EN_PRODUCCION = "obligatoria con ENV=production"
+PATRON_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+LONGITUD_MAXIMA_EMAIL = 254
+LONGITUD_MINIMA_PASSWORD_ADMIN = 12
+LONGITUD_MAXIMA_PASSWORD_ADMIN = 128
 
 
 def _es_produccion(info: ValidationInfo) -> bool:
@@ -70,6 +75,13 @@ class Settings(BaseSettings):
         default_factory=list, validate_default=True
     )
     salud_bd_timeout_s: float = Field(default=2.0, gt=0, le=10)
+    database_url_migrador: SecretStr | None = None
+    db_auto_create: bool = Field(default=False, validate_default=True)
+    db_roles_separados: bool = Field(default=False, validate_default=True)
+    db_espera_max_s: float = Field(default=60.0, gt=0, le=600)
+    db_bootstrap_lock_timeout_s: float = Field(default=120.0, gt=0, le=1800)
+    admin_initial_email: str | None = None
+    admin_initial_password: SecretStr | None = None
 
     @field_validator("debug")
     @classmethod
@@ -91,6 +103,65 @@ class Settings(BaseSettings):
             return None
         if not valor.get_secret_value().startswith(ESQUEMA_BD):
             raise ValueError(f"debe usar el esquema {ESQUEMA_BD}")
+        return valor
+
+    @field_validator("database_url_migrador", mode="before")
+    @classmethod
+    def _url_migrador_vacia_es_ausente(cls, valor: object) -> object:
+        """Compose anula la variable en `api`/`worker` con cadena vacía: equivale a no definirla."""
+        if isinstance(valor, str) and not valor.strip():
+            return None
+        return valor
+
+    @field_validator("database_url_migrador")
+    @classmethod
+    def _validar_database_url_migrador(cls, valor: SecretStr | None) -> SecretStr | None:
+        """Exige el mismo esquema que `DATABASE_URL`; su presencia la exige el bootstrap."""
+        if valor is not None and not valor.get_secret_value().startswith(ESQUEMA_BD):
+            raise ValueError(f"debe usar el esquema {ESQUEMA_BD}")
+        return valor
+
+    @field_validator("db_auto_create")
+    @classmethod
+    def _sin_auto_create_en_produccion(cls, valor: bool, info: ValidationInfo) -> bool:
+        """Rechaza `DB_AUTO_CREATE=true` en producción (ADR-0008)."""
+        if valor and _es_produccion(info):
+            raise ValueError("debe ser false con ENV=production")
+        return valor
+
+    @field_validator("db_roles_separados")
+    @classmethod
+    def _roles_separados_en_produccion(cls, valor: bool, info: ValidationInfo) -> bool:
+        """Exige `DB_ROLES_SEPARADOS=true` en producción (ADR-0008)."""
+        if not valor and _es_produccion(info):
+            raise ValueError("debe ser true con ENV=production")
+        return valor
+
+    @field_validator("admin_initial_email")
+    @classmethod
+    def _validar_admin_email(cls, valor: str | None) -> str | None:
+        """Normaliza a minúsculas y exige un email simple de hasta 254 caracteres."""
+        if valor is None:
+            return None
+        if len(valor) > LONGITUD_MAXIMA_EMAIL or PATRON_EMAIL.fullmatch(valor) is None:
+            raise ValueError("debe ser un email válido de hasta 254 caracteres")
+        return valor.lower()
+
+    @field_validator("admin_initial_password")
+    @classmethod
+    def _validar_admin_password(cls, valor: SecretStr | None) -> SecretStr | None:
+        """Exige entre 12 y 128 caracteres si se define."""
+        if valor is None:
+            return None
+        if not (
+            LONGITUD_MINIMA_PASSWORD_ADMIN
+            <= len(valor.get_secret_value())
+            <= LONGITUD_MAXIMA_PASSWORD_ADMIN
+        ):
+            raise ValueError(
+                f"debe tener entre {LONGITUD_MINIMA_PASSWORD_ADMIN} y "
+                f"{LONGITUD_MAXIMA_PASSWORD_ADMIN} caracteres"
+            )
         return valor
 
     @field_validator("app_master_key")
@@ -154,6 +225,16 @@ class Settings(BaseSettings):
         if self.database_url is None:
             return URL_BD_DESARROLLO
         return self.database_url.get_secret_value()
+
+    def url_base_datos_migrador(self) -> str:
+        """URL del migrador; sin `DATABASE_URL_MIGRADOR` (modo rol único) usa `url_base_datos()`.
+
+        Con roles separados es obligatoria; la exige el bootstrap, no `Settings`, porque la API
+        de producción no debe recibirla (ADR-0008).
+        """
+        if self.database_url_migrador is None:
+            return self.url_base_datos()
+        return self.database_url_migrador.get_secret_value()
 
 
 class ConfiguracionInvalida(Exception):

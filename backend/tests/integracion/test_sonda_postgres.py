@@ -1,31 +1,23 @@
-"""Integración de `SondaPostgres` y de la readiness con PostgreSQL 17 real (requiere Docker)."""
+"""Integración de `SondaPostgres` y de la readiness con PostgreSQL real (E0.1, ADR-0011)."""
 
 import socket
 import time
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 
 import httpx
 import pytest
 from fastapi import FastAPI
-from testcontainers.community.postgres import PostgresContainer
 
 from app.application.ports.salud import ResultadoSonda
 from app.core.config import Settings
 from app.infrastructure.db.motor import crear_motor
 from app.infrastructure.db.sonda_postgres import SondaPostgres
 from app.main import crear_app
+from tests.integracion.conftest import BasePrueba
 from tests.soporte import cliente_para, settings_prueba
 
-IMAGEN_POSTGRES = "postgres:17-alpine"
 TIMEOUT_BD_S = 1.0
 MARGEN_S = 0.5
-
-
-@pytest.fixture(scope="module")
-def url_postgres() -> Iterator[str]:
-    """Levanta PostgreSQL 17 en un contenedor efímero y devuelve su URL asyncpg."""
-    with PostgresContainer(IMAGEN_POSTGRES, driver="asyncpg") as contenedor:
-        yield contenedor.get_connection_url()
 
 
 def _puerto_cerrado() -> int:
@@ -46,9 +38,9 @@ def _url_caida() -> str:
 
 
 @pytest.fixture
-async def app_con_bd(url_postgres: str) -> AsyncIterator[FastAPI]:
-    """App real (sin sondas falsas) con su ciclo de vida activo contra el contenedor."""
-    app = crear_app(_settings_bd(url_postgres))
+async def app_con_bd(base_limpia: BasePrueba) -> AsyncIterator[FastAPI]:
+    """App real (sin sondas falsas) con su ciclo de vida activo contra una base sin migrar."""
+    app = crear_app(_settings_bd(base_limpia.url()))
     async with app.router.lifespan_context(app):
         yield app
 
@@ -61,8 +53,8 @@ async def app_bd_caida() -> AsyncIterator[FastAPI]:
         yield app
 
 
-async def test_sonda_postgres_con_bd_real_devuelve_ok(url_postgres: str) -> None:
-    motor = crear_motor(_settings_bd(url_postgres))
+async def test_sonda_postgres_con_bd_real_devuelve_ok(base_limpia: BasePrueba) -> None:
+    motor = crear_motor(_settings_bd(base_limpia.url()))
     try:
         resultado = await SondaPostgres(motor).comprobar()
     finally:
@@ -83,12 +75,14 @@ async def test_sonda_postgres_puerto_cerrado_falla_dentro_del_timeout() -> None:
     )
 
 
-async def test_readiness_con_bd_real_responde_200(app_con_bd: FastAPI) -> None:
+async def test_readiness_con_bd_real_sin_migrar_distingue_base_y_migraciones(
+    app_con_bd: FastAPI,
+) -> None:
     async with cliente_para(app_con_bd) as cliente:
         respuesta = await cliente.get("/api/v1/salud/listo")
     assert (respuesta.status_code, respuesta.json()["comprobaciones"]) == (
-        200,
-        {"base_datos": "ok"},
+        503,
+        {"base_datos": "ok", "migraciones": "falla"},
     )
 
 

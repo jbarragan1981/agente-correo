@@ -19,7 +19,12 @@ class PreparacionOut(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         json_schema_extra={
-            "examples": [{"estado": "listo", "comprobaciones": {"base_datos": "ok"}}]
+            "examples": [
+                {
+                    "estado": "listo",
+                    "comprobaciones": {"base_datos": "ok", "migraciones": "ok"},
+                }
+            ]
         },
     )
 

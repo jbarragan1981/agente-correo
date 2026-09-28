@@ -97,7 +97,7 @@ Validaciones del prompt: tamaño máximo 32 KB, sin secretos (regex), placeholde
 | GET | `/metricas/categorias` | todos | Distribución y confianza media por categoría. |
 | GET | `/auditoria` | admin, auditor | Registro append-only con filtros. |
 | GET | `/salud` | público | Liveness; no consulta dependencias. 200 `{"estado":"vivo"}`. |
-| GET | `/salud/listo` | público | Readiness. 200 `{"estado":"listo","comprobaciones":{"base_datos":"ok"}}`; si alguna comprobación falla o excede `SALUD_BD_TIMEOUT_S`, 503 `no_listo` con `comprobaciones: {"base_datos":"falla"}` y sin detalles de la dependencia. E0.2 añade `migraciones` y E1.1 `proveedores`. |
+| GET | `/salud/listo` | público | Readiness. 200 `{"estado":"listo","comprobaciones":{"base_datos":"ok","migraciones":"ok"}}`; si alguna comprobación falla o excede `SALUD_BD_TIMEOUT_S`, 503 `no_listo` con `comprobaciones` (p. ej. `{"base_datos":"ok","migraciones":"falla"}`) y sin detalles de la dependencia ni revisiones. `migraciones` (E0.2) exige que `alembic_version` coincida con la revisión `head` del código; E1.1 añade `proveedores`. |
 | GET | `/metrics` | red interna | Prometheus (protegido por red/basic auth). |
 
 ## 10. Webchat

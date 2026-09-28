@@ -26,7 +26,7 @@ RESPUESTA_NO_LISTO: dict[int | str, dict[str, Any]] = {
                     "status": 503,
                     "detail": "Una o más dependencias no están disponibles.",
                     "instance": "urn:uuid:3f2b8c1e-6d4a-4f7e-9a51-2b0c8d7e6f10",
-                    "comprobaciones": {"base_datos": "falla"},
+                    "comprobaciones": {"base_datos": "ok", "migraciones": "falla"},
                 }
             }
         },

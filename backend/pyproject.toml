@@ -12,6 +12,13 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.1",
   "asyncpg>=0.31",
   "structlog>=26",
+  "alembic>=1.20,<1.21",
+  "psycopg[binary]>=3.3,<3.4",
+  "procrastinate>=3.10,<3.11",
+  "langgraph-checkpoint-postgres>=3.1,<3.2",
+  "argon2-cffi>=25.1",
+  "uuid-utils>=0.12,<1.0",
+  "langchain-core>=1.6,<2",
 ]
 
 [dependency-groups]
@@ -42,6 +49,11 @@ select = [
 # N818: las excepciones de dominio usan nombres en español (NoEncontrado, ConfiguracionInvalida).
 ignore = ["N818"]
 
+[tool.ruff.lint.isort]
+# backend/alembic/ es el directorio de migraciones; `alembic` es la librería.
+known-third-party = ["alembic"]
+known-first-party = ["app", "tests"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
 # Los validadores de pydantic comunican el error con el mensaje de ValueError.
@@ -67,7 +79,7 @@ filterwarnings = ["error"]
 markers = [
   "unit: sin E/S, puertos falsos",
   "contrato: adaptadores de proveedor con respx/cassettes",
-  "integracion: requiere Docker (testcontainers)",
+  "integracion: requiere PostgreSQL efímero (ADR-0011)",
   "api: app ASGI con httpx, dependencias falsas",
   "agentes: grafo LangGraph con proveedores falsos",
   "e2e: Compose + Playwright",

@@ -1,4 +1,4 @@
-"""Verificaciones de QA E0.1: CA2 (lockfile), SDKs de IA dinámicos y uso de `os.environ`."""
+"""Verificaciones de QA: lockfile (CA2 E0.1, CA1 E0.2), SDKs de IA dinámicos y `os.environ`."""
 
 import ast
 import re
@@ -10,12 +10,16 @@ import pytest
 
 RAIZ_BACKEND: Final = Path(__file__).resolve().parents[2]
 RAIZ_APP: Final = RAIZ_BACKEND / "app"
-PAQUETES_PROHIBIDOS_EN_E0_1: Final = re.compile(
-    r'^name = "(anthropic|openai|google-genai|langchain.*|langgraph.*|typesafe.*'
-    r"|procrastinate|alembic|aioimaplib|aiosmtplib)\"$",
+# E0.2 admite alembic, procrastinate, langgraph-checkpoint* y langchain-core/-protocol (ADR-0010);
+# siguen prohibidos los SDKs de IA, las integraciones de LangChain, LangGraph completo y el correo.
+PAQUETES_PROHIBIDOS: Final = re.compile(
+    r'^name = "(anthropic|openai|google-genai|google-generativeai|typesafe.*'
+    r"|langchain|langchain-(?!core\"|protocol\").*|langgraph|langgraph-(?!checkpoint).*"
+    r"|aioimaplib|aiosmtplib)\"$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 NOMBRES_SDK: Final = ("anthropic", "openai", "google", "typesafe", "langchain")
+DEPENDENCIAS_LANGCHAIN_PERMITIDAS: Final = frozenset({"langchain-core"})
 FUNCIONES_IMPORT_DINAMICO: Final = {"import_module", "__import__"}
 
 
@@ -29,14 +33,30 @@ def _archivos_fuera_de_providers() -> list[Path]:
 
 def test_lockfile_no_contiene_dependencias_de_ia_ni_de_fases_posteriores() -> None:
     lock = (RAIZ_BACKEND / "uv.lock").read_text(encoding="utf-8")
-    assert PAQUETES_PROHIBIDOS_EN_E0_1.findall(lock) == []
+    assert PAQUETES_PROHIBIDOS.findall(lock) == []
 
 
 def test_pyproject_no_declara_dependencias_de_ia() -> None:
     datos = tomllib.loads((RAIZ_BACKEND / "pyproject.toml").read_text(encoding="utf-8"))
     declaradas = [*datos["project"]["dependencies"], *datos["dependency-groups"]["dev"]]
     nombres = {re.split(r"[\[<>=~! ]", dep, maxsplit=1)[0].lower() for dep in declaradas}
-    assert {n for n in nombres if n.startswith(NOMBRES_SDK)} == set()
+    sdks = {n for n in nombres if n.startswith(NOMBRES_SDK)} - DEPENDENCIAS_LANGCHAIN_PERMITIDAS
+    assert sdks == set()
+
+
+@pytest.mark.parametrize(
+    "nombre",
+    ["anthropic", "openai", "google-genai", "langchain-anthropic", "langchain", "langgraph"],
+)
+def test_patron_de_lockfile_detecta_paquetes_prohibidos(nombre: str) -> None:
+    assert PAQUETES_PROHIBIDOS.findall(f'name = "{nombre}"\n') == [nombre]
+
+
+@pytest.mark.parametrize(
+    "nombre", ["langchain-core", "langchain-protocol", "langgraph-checkpoint-postgres"]
+)
+def test_patron_de_lockfile_admite_dependencias_de_e0_2(nombre: str) -> None:
+    assert PAQUETES_PROHIBIDOS.findall(f'name = "{nombre}"\n') == []
 
 
 @pytest.mark.parametrize(

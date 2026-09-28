@@ -36,6 +36,7 @@ def valores_produccion(**cambios: Any) -> dict[str, Any]:
         "jwt_secret": JWT_SECRET_PRUEBA,
         "database_url": DATABASE_URL_PRUEBA,
         "cors_origenes": ORIGEN_PERMITIDO,
+        "db_roles_separados": True,
     }
     return valores | cambios
 

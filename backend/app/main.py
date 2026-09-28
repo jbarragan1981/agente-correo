@@ -24,6 +24,7 @@ from app.api.openapi import AplicacionApi
 from app.api.routers import salud
 from app.core.config import ConfiguracionInvalida, NivelLog, Settings, cargar_settings
 from app.core.logging import configurar_logging, obtener_logger
+from app.infrastructure.db.bootstrap.migraciones import revision_head
 from app.infrastructure.db.motor import crear_motor
 
 PREFIJO_API: Final = "/api/v1"
@@ -38,7 +39,11 @@ _log = obtener_logger(__name__)
 
 @asynccontextmanager
 async def _ciclo_de_vida(app: FastAPI) -> AsyncGenerator[None]:
-    """Crea el motor sin conectar (la API arranca con la BD caída) y lo libera al apagar."""
+    """Crea el motor sin conectar (la API arranca con la BD caída) y lo libera al apagar.
+
+    La revisión `head` se lee de los archivos de Alembic (sin BD) para la sonda de migraciones.
+    """
+    app.state.revision_head = revision_head()
     motor = crear_motor(app.state.settings)
     app.state.motor = motor
     try:

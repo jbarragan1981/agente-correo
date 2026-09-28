@@ -313,7 +313,13 @@ async def test_readiness_con_bd_caida_real_responde_503_sin_detalles_y_a_tiempo(
         respuesta.json()["comprobaciones"],
         duracion <= timeout_s + 0.5,
         [dato in visible for dato in (clave, "usuario_qa", "127.0.0.1", "bd_qa")],
-    ) == (503, "application/problem+json", {"base_datos": "falla"}, True, [False] * 4)
+    ) == (
+        503,
+        "application/problem+json",
+        {"base_datos": "falla", "migraciones": "falla"},
+        True,
+        [False] * 4,
+    )
 
 
 async def test_readiness_sondas_mixtas_devuelven_estado_por_dependencia() -> None:

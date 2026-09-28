@@ -1,0 +1,11 @@
+# Overlay de desarrollo: `docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml`.
+# Lo usan `make db`, `make dev`, `make db-roles`, `make down` y `make e2e`.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+  migrador:
+    environment:
+      # DB_AUTO_CREATE está prohibido con ENV=production (valor por defecto de la imagen).
+      ENV: development
+      DB_AUTO_CREATE: "true"

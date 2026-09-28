@@ -65,9 +65,18 @@ PATRONES_VALOR: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
     ),
 )
 
-LOGGERS_LIBRERIAS: Final = ("uvicorn", "uvicorn.error", "uvicorn.asgi", "sqlalchemy", "asyncio")
+LOGGERS_LIBRERIAS: Final = (
+    "uvicorn",
+    "uvicorn.error",
+    "uvicorn.asgi",
+    "sqlalchemy",
+    "asyncio",
+    "alembic",
+    "psycopg",
+    "asyncpg",
+)
 LOGGERS_SILENCIADOS: Final = ("uvicorn.access",)
-LOGGERS_SOLO_AVISOS: Final = ("httpx", "httpcore", "sqlalchemy")
+LOGGERS_SOLO_AVISOS: Final = ("httpx", "httpcore", "sqlalchemy", "alembic", "psycopg", "asyncpg")
 CAMPOS_DE_CONSOLA: Final = ("color_message",)
 
 

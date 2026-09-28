@@ -26,11 +26,14 @@ pytestmark = pytest.mark.lento
 
 @pytest.fixture
 def backend_aislado(tmp_path: Path) -> Path:
-    """Copia `app/` a `tmp/backend/app` (sin `.env` en el árbol)."""
+    """Copia `app/` y `alembic/` a `tmp/backend` como en la imagen (sin `.env` en el árbol)."""
     destino = tmp_path / "backend"
-    shutil.copytree(
-        RAIZ_BACKEND / "app", destino / "app", ignore=shutil.ignore_patterns("__pycache__")
-    )
+    for directorio in ("app", "alembic"):
+        shutil.copytree(
+            RAIZ_BACKEND / directorio,
+            destino / directorio,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
     return destino
 
 

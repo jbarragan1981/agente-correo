@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from app.application.ports.salud import SondaDependenciaPort
 from app.application.use_cases.comprobar_preparacion import ComprobarPreparacion
 from app.core.config import Settings
+from app.infrastructure.db.sonda_migraciones import SondaMigraciones
 from app.infrastructure.db.sonda_postgres import SondaPostgres
 
 
@@ -19,7 +20,8 @@ def dep_settings(request: Request) -> Settings:
 def dep_sondas(request: Request) -> list[SondaDependenciaPort]:
     """Sondas de preparación activas en esta épica."""
     motor = cast(AsyncEngine, request.app.state.motor)
-    return [SondaPostgres(motor)]
+    revision = cast(str, request.app.state.revision_head)
+    return [SondaPostgres(motor), SondaMigraciones(motor, revision)]
 
 
 def dep_comprobar_preparacion(
