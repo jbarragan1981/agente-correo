@@ -472,3 +472,75 @@ Puntos para la revisión del agente `seguridad`: R1–R13, `bandit`, `pip-audit`
 3. `docs/04-api.md`, `docs/08-observabilidad.md` y `backend/README.md` actualizados (B9); ADR-0007 aceptada.
 4. Lista de acciones manuales para el usuario en el reporte de cierre: actualizar `.env.example` (R9).
 5. Revisión de `seguridad` sin hallazgos bloqueantes; commits convencionales en `feature/e0-1-esqueleto-backend`.
+
+## 9. Resultado de QA
+
+**Fecha:** 2026-09-28 · **Agente:** qa · Todo reejecutado desde `backend/`, sin confiar en el reporte previo. No se leyó ni editó `.env` ni `.env.example`.
+
+### 9.1 Comandos ejecutados
+
+| Comando | Resultado |
+|---|---|
+| `uv sync --locked --group dev` | código 0 (`Audited 66 packages`) |
+| `uv run ruff check` / `ruff format --check` | `All checks passed!` / `67 files already formatted` |
+| `uv run pyrefly check` | `0 errors` |
+| `uv run pytest -q -m "not integracion and not e2e and not eval"` | `452 passed, 5 deselected, 1 xfailed` |
+| `uv run pytest -m "unit or api" --cov=app --cov-fail-under=85` | `Total coverage: 99.72%` (rama incluida); `app/core/config.py` 100 %, `app/core/logging.py` 99 % (rama 137->139) |
+| `uv run bandit -q -r app -ll` | sin hallazgos |
+| `uv run pip-audit` | `No known vulnerabilities found` |
+| `docker compose -f infra/docker-compose.yml config -q` | código 0 |
+| `uv run pytest --collect-only -q -m integracion` | 5 pruebas recolectadas |
+| Arranque real `uvicorn --factory app.main:crear_app` con `ENV=development` | 200 en `/api/v1/salud`, 503 `problem+json` en `/salud/listo` sin BD, 200 en `openapi.json`, 405 con `Allow: GET`, logs de stdout JSON, `?token=abc` ausente de los logs |
+| Ídem con `ENV=production JWT_SECRET=<corto>` | código de salida 1, una línea JSON `config.invalida` con los campos `DATABASE_URL`, `APP_MASTER_KEY`, `JWT_SECRET`, `CORS_ORIGENES`; el valor del secreto no aparece |
+
+### 9.2 Criterios de aceptación → prueba → resultado
+
+| CA | Prueba principal | Resultado |
+|---|---|---|
+| CA1 | `uv sync --locked --group dev` | OK |
+| CA2 | `tests/unit/test_arquitectura_extra.py::test_lockfile_no_contiene_dependencias_de_ia_ni_de_fases_posteriores` y `test_pyproject_no_declara_dependencias_de_ia` (añadidas por QA; antes solo existía el grep manual) | OK |
+| CA3 | ruff, format, pyrefly y pytest rápido de 9.1 | OK |
+| CA4 | Cobertura 99,72 % total; `app/core/` 99-100 % | OK |
+| CA5 | `tests/unit/core/test_config.py::test_settings_produccion_invalida_falla_en_el_campo` (10 casos) + `tests/unit/core/test_config_limites.py` (clave de 0/1/16/24/31/33/64 bytes, `DEBUG` en cinco formas, `ENV` mal escrito, CORS vacío o solo comas, mensajes sin valores) | OK |
+| CA6 | `tests/api/test_salud.py::test_salud_vivo_no_consulta_sondas` | OK |
+| CA7 | `tests/api/test_salud.py::test_salud_listo_*`, `test_adversarial.py::test_readiness_con_bd_caida_real_responde_503_sin_detalles_y_a_tiempo` (motor real contra puerto cerrado, verifica ausencia de host, usuario, base y clave en respuesta y logs, y duración ≤ timeout + 0,5 s) | OK sin Docker; la variante con PostgreSQL 17 (`tests/integracion/`) queda **pendiente** |
+| CA8 | `tests/api/test_cabeceras.py` (200, 404, 405, 400, 500, 503) + `test_adversarial.py::test_error_lleva_todas_las_cabeceras_de_seguridad` (11 solicitudes) + preflight CORS rechazado | OK |
+| CA9 | `tests/api/test_errores.py` + `test_adversarial.py::test_error_es_problem_json_con_instance_igual_al_request_id` (400 por JSON roto, binario y tipos, 404, 405 incl. HEAD, 409, 500) | OK salvo el preflight rechazado (BUG-01) |
+| CA10 | `tests/api/test_cors.py`, `test_adversarial.py` (origen con prefijo de la allowlist, métodos exóticos) y `test_config_limites.py` (comodines) | OK |
+| CA11 | `tests/api/test_docs.py` (7 rutas en producción) | OK |
+| CA12 | `tests/unit/core/test_logging.py`, `test_logging_limites.py` (16 casos), `test_adversarial.py` (JWT, `sk-ant-`, correo, DSN en ruta, excepción y `sqlalchemy`) | OK; ver BUG-04 corregido |
+| CA13 | `tests/api/test_logs_acceso.py` + arranque real con `?token=abc` | OK |
+| CA14 | `tests/unit/test_arquitectura.py` + `test_arquitectura_extra.py` (importaciones dinámicas de SDKs, `os.environ` solo en `config.py`) | OK |
+| CA15 | `compose config -q` código 0; `up -d --build db api` | `config`: OK. `up`: **pendiente** (sin daemon Docker) |
+| CA16 | `bandit -ll`, `pip-audit` | OK |
+
+Pruebas de integración con contenedor (`tests/integracion/test_sonda_postgres.py`, 5 pruebas): **pendientes de ejecutar con Docker**. Sin daemon, `pytest -m integracion` falla con `DockerException: Error while fetching server API version` (esperado); no se marcaron `skip`. Las dos pruebas que usan contenedor real son `test_sonda_postgres_con_bd_real_devuelve_ok` y `test_readiness_con_bd_real_responde_200`.
+
+`docs/04-api.md` contiene `metodo_no_permitido` (§12, fila 405, con `Allow`) y `error_interno` (§12, fila 500), además de `X-Request-ID` e `instance`: la discrepancia detectada antes está resuelta.
+
+### 9.3 Pruebas añadidas por QA
+
+| Archivo | Pruebas | Contenido |
+|---|---|---|
+| `backend/tests/unit/core/test_config_limites.py` | 54 | Límites de `Settings` con entorno real y sin `.env`. |
+| `backend/tests/unit/core/test_logging_limites.py` | 16 | Variantes de clave, anidados, bytes, DSN con `@`, query, correo. |
+| `backend/tests/unit/test_arquitectura_extra.py` | 95 | CA2, importaciones dinámicas, `os.environ`. |
+| `backend/tests/api/test_adversarial.py` | 59 (1 xfail) | `X-Request-ID` hostil (CRLF, 10 000 caracteres, JSON de log, unicode), problem+json y cabeceras en 11 errores, CORS, readiness con BD real caída, redacción de extremo a extremo. |
+| `backend/tests/api/test_proceso_uvicorn.py` | 5 (`lento`) | Proceso real `uvicorn --factory` en copia sin `.env`: desarrollo (salud, readiness 503, apagado con SIGINT) y producción (código 1, sin valores, `DEBUG=true`). |
+
+### 9.4 Defectos
+
+| ID | Severidad | Estado | Descripción |
+|---|---|---|---|
+| BUG-01 | Baja | Abierto, `xfail(strict=True)` | El preflight CORS de un origen ajeno responde `400 text/plain` ("Disallowed CORS origin") en lugar de `problem+json`, contra CA9. Lleva `X-Request-ID` y cabeceras de seguridad. Reproducción: `OPTIONS /api/v1/salud` con `Origin: https://malicioso.ejemplo.net` y `Access-Control-Request-Method: GET`. Origen: `CORSMiddleware` de Starlette montado en `backend/app/main.py` (`_registrar_middlewares`). Arreglo sugerido: subclase de `CORSMiddleware` que convierta el rechazo en `respuesta_problema` con `type="error_http"`, o decidir en el plan que el 400 de preflight queda fuera de CA9. Prueba: `tests/api/test_adversarial.py::test_cors_preflight_rechazado_responde_problem_json`. |
+| BUG-02 | Baja | Corregido (trivial) | Una `ExcepcionDominio` sin entrada en `MAPEO_DOMINIO` devolvía 500 sin dejar rastro en el log. Se añade `_log.error("http.excepcion_dominio_sin_mapeo", tipo_error=...)` en `backend/app/api/errores.py` (`describir_excepcion_dominio`). Prueba: `test_dominio_sin_mapeo_deja_rastro_en_el_log`. |
+| BUG-03 | Baja | Corregido (trivial) | `CORS_ORIGENES` aceptaba `https://a.com:abc`, `https://a.com:99999` y `HTTPS://A.com`; los dos primeros son inválidos y el tercero nunca coincide con el `Origin` del navegador (silenciosamente sin CORS en producción). Se añadió la validación de puerto y de minúsculas en `_validar_origen` (`backend/app/core/config.py`). Prueba: `test_cors_origen_mal_formado_o_que_nunca_coincidiria_falla` (10 casos). |
+| BUG-04 | Media | Corregido (trivial) | La redacción de DSN dejaba visible parte de la contraseña si contenía `@` sin codificar: `postgresql://u:pa@ss-secreta@host/db` salía como `postgresql://u:***@ss-secreta@host/db`. Se cambió el patrón a `[^\s/]+@` en `backend/app/core/logging.py:51`. Prueba: `test_redactar_dsn_con_contrasena_que_contiene_arroba_no_deja_resto_visible`. |
+
+### 9.5 Observaciones sin defecto (para decisión)
+
+- `JWT_SECRET` de 32 espacios pasa la validación (solo se exige longitud). Entropía mínima queda para E0.3, cuando exista el uso real.
+- `HEAD /api/v1/salud` responde 405; los sondeos de Compose y del Dockerfile usan GET. Si algún balanceador usa HEAD habrá que declarar el método.
+- `DEBUG=true` en desarrollo sube el nivel raíz a DEBUG, lo que también activa los logs de `sqlalchemy` con parámetros; pasan por la redacción, pero conviene revisarlo al añadir modelos en E0.2.
+- La puerta de `proteger-secretos.sh` no bloqueó ninguna prueba; los JWT y claves se arman en tiempo de ejecución.
+- Sin `.env`, el proceso de producción termina con código 1; con el árbol real, `Settings` leería `RAIZ_REPO/.env` si existiera (las pruebas de proceso usan una copia de `app/` para evitarlo).

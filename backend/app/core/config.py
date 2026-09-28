@@ -40,6 +40,12 @@ def _validar_origen(origen: str) -> None:
         raise ValueError("cada origen CORS debe tener la forma http(s)://host[:puerto]")
     if partes.path or partes.query or partes.fragment or partes.username or partes.password:
         raise ValueError("un origen CORS no admite ruta, query, fragmento ni credenciales")
+    if origen != origen.lower():
+        raise ValueError("el origen CORS debe escribirse en minúsculas")
+    try:
+        _ = partes.port
+    except ValueError:
+        raise ValueError("el puerto del origen CORS no es válido") from None
 
 
 class Settings(BaseSettings):

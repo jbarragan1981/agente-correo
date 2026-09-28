@@ -48,7 +48,7 @@ PATRONES_VALOR: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
     (re.compile(r"sk-ant-[A-Za-z0-9_-]+"), REDACTADO),
     (re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"), REDACTADO),
     (re.compile(r"\bts_[A-Za-z0-9_-]{8,}"), REDACTADO),
-    (re.compile(r"(://[^:/@\s]+:)[^@\s]+@"), r"\1***@"),
+    (re.compile(r"(://[^:/@\s]+:)[^\s/]+@"), r"\1***@"),
     (
         re.compile(
             r"(?i)([?&][a-z0-9_.-]*(?:token|key|password|secret|signature|sig)=)[^&\s#\"']+"

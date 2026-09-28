@@ -11,7 +11,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.middleware.correlacion import obtener_correlation_id
 from app.api.schemas.problema import MEDIA_TYPE_PROBLEMA, ErrorCampo, Problema
+from app.core.logging import obtener_logger
 from app.domain.errores import Conflicto, ExcepcionDominio, NoEncontrado
+
+_log = obtener_logger(__name__)
 
 DETALLE_ERROR_INTERNO: Final = "Error interno. Cite el identificador al reportarlo."
 
@@ -92,6 +95,7 @@ def describir_excepcion_dominio(exc: ExcepcionDominio) -> DescripcionProblema:
         descripcion = MAPEO_DOMINIO.get(clase)
         if descripcion is not None:
             return descripcion
+    _log.error("http.excepcion_dominio_sin_mapeo", tipo_error=type(exc).__name__)
     return ERROR_INTERNO
 
 
