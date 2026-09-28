@@ -660,4 +660,53 @@ Ninguna prueba existente se eliminó, saltó ni debilitó. Cambios de código de
 
 ## 12. Cierre y revisión de seguridad
 
-_(lo completa seguridad)_
+**Fecha:** 2026-09-28 · **Agente:** seguridad · **Alcance:** `backend/app` (bootstrap, BD, semillas, seguridad, avisos, casos de uso), `backend/alembic` (0001–0005 y SQL de procrastinate), `infra/` (Compose base y dev, `Dockerfile.backend`, `sql/roles.sql`, `sql/00-roles.sh`), `Makefile`, `backend/README.md`. Marco: `docs/07-seguridad.md`, ADR-0007 a ADR-0011. Verificación dinámica en un clúster PostgreSQL 16.13 efímero (`initdb --encoding=UTF8 --locale=C --auth=scram-sha-256`, solo `127.0.0.1:55433`, `mkdtemp` en `/tmp`, apagado y borrado al terminar).
+
+### 12.1 Herramientas
+
+| Comando | Resultado |
+|---|---|
+| `uv run bandit -q -r app -ll` | sin hallazgos (código 0) |
+| `uv run pip-audit` | `No known vulnerabilities found` (código 0) |
+| `uvx semgrep@1.178.0 --config p/owasp-top-ten --config p/python --error app` | **No ejecutado**: el proxy devuelve `403 Forbidden` al descargar las reglas de `semgrep.dev` (código 2). Queda para CI (E0.5). |
+| `gitleaks` | no instalado; grep de credenciales del procedimiento: sin credenciales reales (solo valores de prueba evidentes en specs de frontend y las variables `:'pass_*'` de `00-roles.sh`) |
+| `npm audit --audit-level=high` (frontend, solo lectura) | `found 0 vulnerabilities` |
+| `ruff`, `pyrefly`, `pytest -m "not integracion and not e2e and not eval"` tras la corrección de Compose | limpio; 940 passed, 1 xfailed (BUG-01 heredado) |
+
+### 12.2 Checklist
+
+| Punto | Estado |
+|---|---|
+| Autenticación/autorización (endpoints nuevos, IDOR, refresh, rate limits) | N/A: sin endpoints nuevos; `/salud/listo` solo añade `migraciones` sin datos sensibles |
+| Secretos (cifrado, nunca en respuestas/logs/fixtures/docs; `.env` sin versionar) | OK tras corregir S-A1 (Compose). Contraseñas de BD ausentes de logs en éxito, `DEBUG`, credencial del migrador rechazada y del app rechazada (verificado); `\getenv` en `00-roles.sh`; URLs como `URL`/`SecretStr` |
+| Entrada (Pydantic, límites, hosts) | OK: validadores de `Settings` (esquema de URL, email ≤ 254, contraseña 12–128, tiempos acotados, nombre de base por regex + `sql.Identifier`) |
+| LLM (datos no confiables, herramientas, salida) | OK con observación S-B4: los cinco prompts v1 llevan la cláusula; generativos y proveedores sembrados deshabilitados |
+| Datos (auditoría en cada mutación, sin cuerpos en logs) | OK con observación S-M2 (límites de la cadena) |
+| Web (CSP, CORS, cookies) | N/A en esta épica |
+| Infra (no root, FS solo lectura, sin secretos en imagen, BD sin puertos, variables validadas) | OK: M1 y B6 de E0.1 cerrados (ver 12.3) |
+| Dependencias | OK: rangos acotados, `uv.lock`, SQL de procrastinate idéntico al del paquete 3.10.0 (comprobado); observación S-B5 |
+| Pruebas de seguridad | OK: adversariales de QA (roles, auditoría, bootstrap, logs); falta cubrir S-M1 y S-B1 |
+
+### 12.3 Cierre de observaciones de E0.1
+
+- **M1 · cerrado.** `docker compose config` con la base: `db` sin `ports`; `POSTGRES_PASSWORD`, `AGENTE_MIGRADOR_PASSWORD` y `AGENTE_APP_PASSWORD` con `:?`; el overlay dev publica solo `127.0.0.1:5432`; las contraseñas locales evidentes solo las aporta el `Makefile`.
+- **B6 · cerrado.** `Settings` rechaza `DB_AUTO_CREATE=true` y `DB_ROLES_SEPARADOS=false` con `ENV=production`; Compose fija roles separados en `migrador`, `api` y `worker`; `asegurar_base` solo toca la base `postgres` si la base destino falta. Privilegios reales tras el bootstrap: `agente_app` y `agente_migrador` sin `SUPERUSER`/`CREATEROLE`/`CREATEDB`/`BYPASSRLS`/`REPLICATION`; `agente_app` con `CONNECT` sin `CREATE` ni `TEMPORARY` en la base, `USAGE` sin `CREATE` en `public`, `langgraph` y `procrastinate`; en `auditoria` solo `SELECT, INSERT`; en `alembic_version` solo `SELECT`; sin `TRUNCATE`, `TRIGGER` ni `REFERENCES`; sin `EXECUTE` sobre `agente_conceder_privilegios`; cero funciones `SECURITY DEFINER`. `agente_app` no puede desactivar triggers, `SET ROLE agente_migrador`, crear tablas temporales ni esquemas (comprobado).
+
+### 12.4 Hallazgos
+
+| ID | Severidad | Ubicación | Descripción e impacto | Corrección | Estado |
+|---|---|---|---|---|---|
+| S-A1 | Alta | `infra/docker-compose.yml` (`env_file: ../.env` en `migrador`, `api`, `worker`) | El README declara el `.env` compartido con Compose y §9 pide poner allí `POSTGRES_PASSWORD` y `AGENTE_MIGRADOR_PASSWORD`. `env_file` inyecta el archivo completo: `docker compose config` con un `.env` de prueba muestra `POSTGRES_PASSWORD` (superusuario) y `AGENTE_MIGRADOR_PASSWORD` en `api` y `worker`. Anula R1/ADR-0008 ("la API nunca recibe la credencial del migrador"): una lectura de archivos o RCE en la API (`/proc/self/environ`) escalaría a superusuario de la BD (reescritura de auditoría, `COPY ... PROGRAM`). | Aplicada por seguridad: `POSTGRES_PASSWORD: ""` en `migrador`, `api`, `worker` y `AGENTE_MIGRADOR_PASSWORD: ""` en `api` y `worker` (mismo patrón que `DATABASE_URL_MIGRADOR: ""`; `Settings` ignora esas claves). Verificado con `docker compose config` y `tests/unit/test_compose.py` (15 passed). Pendiente (arquitecto, E0.5/E1.12): archivos de entorno por servicio en vez del `.env` compartido y una prueba de Compose que lo cubra. | Mitigado |
+| S-M1 | Media | `backend/app/infrastructure/db/bootstrap/privilegios.py:354` y `:363-366` | La verificación que falla cerrada no detecta (1) que `agente_app` sea miembro de `agente_migrador` sin herencia (`pg_has_role(..., 'USAGE')` da `false`, pero `SET ROLE agente_migrador` funciona y permite `ALTER TABLE auditoria DISABLE TRIGGER`), ni (2) pertenencia a `pg_execute_server_program`, `pg_read_server_files` o `pg_write_server_files`. Reproducido: con ambas concesiones el bootstrap termina con código 0. El migrador solo se comprueba contra `SUPERUSER`. | Backend: `'USAGE'` → `'MEMBER'` en la línea 354; nuevas columnas `rol_de_servidor` (`pg_has_role(current_user, r, 'MEMBER')` para los tres roles predefinidos) y, para el migrador, `CREATEROLE`, `CREATEDB`, `BYPASSRLS` y los mismos roles predefinidos; pruebas de integración negativas. El cambio de una palabra no se aplicó en esta revisión: la herramienta de permisos lo denegó. | Issue |
+| S-M2 | Media | ADR-0009; `backend/alembic/versions/0002_identidad_auditoria.py` | Además del superusuario, el **propietario** de `auditoria` (`agente_migrador`, sin privilegios especiales) puede `ALTER TABLE auditoria DISABLE TRIGGER USER` y borrar las últimas filas sin que `verificar_cadena()` lo detecte (reproducido: 3 → 2 filas, `primera_rota` nula). ADR-0009 solo reconoce el caso del superusuario; OBS-3 de QA confirma que no hay ancla externa. | Arquitecto: enmendar ADR-0009 con el propietario en el modelo de amenazas; ancla externa barata desde ya (registrar `secuencia` y `hash` del último registro en `bootstrap.completado` y, en E1.10, un evento periódico hacia el agregador de logs); evaluar un propietario `NOLOGIN` distinto para `auditoria` con `SET ROLE` explícito en migraciones. | Issue |
+| S-B1 | Baja | `privilegios_migracion.py` (función `agente_conceder_privilegios`) | `agente_app` tiene `INSERT/UPDATE/DELETE` sobre `langgraph.checkpoint_migrations` (mismo patrón que BUG-03): una inyección SQL podría hacer que `setup()` omita o repita migraciones del checkpointer. La app (E1.4) no llama a `setup()`. | Revisión 0006 con `REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON langgraph.checkpoint_migrations FROM agente_app` dentro de la función y comprobación en `COMPROBACIONES_APP`. | Issue |
+| S-B2 | Baja | `crear_admin_inicial.py`, `avisos/stderr.py` | La contraseña generada queda en `docker logs` del `migrador` (y en el agregador si el daemon reenvía logs) y se pierde si el proceso muere entre el `COMMIT` y la escritura (OBS-1). Sin procedimiento de recuperación documentado. | E0.3: forzar el cambio en el primer login (ya previsto), caducidad de la contraseña inicial y un comando auditado de restablecimiento del admin; README: recuperación. En producción, `ADMIN_INITIAL_PASSWORD` desde gestor de secretos (ya recomendado). | Issue |
+| S-B3 | Baja | `infra/docker-compose.yml` | Tras S-A1, `ADMIN_INITIAL_PASSWORD` sigue llegando a `api` y `worker` por `env_file`; no se puede anular con `""` porque el validador exige 12–128 caracteres. | Se resuelve con los archivos de entorno por servicio de S-A1, o tratando `""` como ausente en el validador. | Issue |
+| S-B4 | Baja | `backend/app/agents/prompts/redactor_v1.md:19` | El prompt pide al modelo "cuerpo en HTML", coherente con `docs/05` §3.4 pero en conflicto con `docs/07` §4 LLM02 ("HTML del borrador generado desde texto, sin HTML del modelo"). El redactor está deshabilitado y la v1 es inmutable. | Arquitecto: alinear `docs/05` con `docs/07`; E1.6 publica una v2 sin HTML del modelo y genera el HTML desde `cuerpo_texto`. | Issue |
+| S-B5 | Baja | `backend/pyproject.toml` | `langsmith` (transitiva) está en 0.14.1 solo por el lock; una re-resolución restringida por otra dependencia podría bajarla a la versión con CVE. | `[tool.uv] constraint-dependencies = ["langsmith>=0.14.1"]` y `uv lock`. | Issue |
+
+Observaciones sin hallazgo: cualquier rol puede tomar el advisory lock `0xA6E17E` y retrasar un bootstrap (solo disponibilidad; `LockTimeout` falla cerrado); `agente_app` conserva `CONNECT` sobre la base `postgres` por el `PUBLIC` por defecto del servidor (endurecimiento del DBA); `ALTER ROLE ... PASSWORD` viaja en claro al servidor y aparecería en sus logs con `log_statement=ddl|all`; la cadena de hash no incluye `id` (no altera el contenido auditado). Semillas: la reinserción de filas borradas (OBS-2) repone valores seguros por defecto (`envio_automatico_habilitado=false`, proveedores y generativos deshabilitados); sin impacto de seguridad hasta E1.9. Argon2id m=65536, t=3, p=4 coincide con `docs/07` §2. Driver, codificación de contraseñas (`conninfo` con `%20`, BUG-04/05) y redacción de DSN (BUG-02) verificados.
+
+### 12.5 Veredicto
+
+**APROBADO CON OBSERVACIONES.** La única Alta (S-A1) quedó mitigada en `infra/docker-compose.yml` por seguridad (cambio sin commit; debe entrar en la rama). Antes de abrir el PR hay que crear los issues de S-M1, S-M2 y S-B1 a S-B5; S-M1 conviene corregirlo dentro de E0.2 por ser un cambio pequeño en un control que falla cerrado. Semgrep queda pendiente de CI por el bloqueo del proxy.

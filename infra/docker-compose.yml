@@ -46,6 +46,8 @@ services:
       # Solo para verificar los privilegios del rol de la app; el migrador no la usa para DDL.
       DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
       # ADMIN_INITIAL_EMAIL y ADMIN_INITIAL_PASSWORD (opcionales) llegan desde ../.env.
+      # El .env compartido no debe entregar la contraseña del superusuario a ningún servicio de la app.
+      POSTGRES_PASSWORD: ""
     depends_on: { db: { condition: service_healthy } }
     healthcheck: { disable: true }
     <<: *endurecido
@@ -60,6 +62,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
       DATABASE_URL_MIGRADOR: ""
+      # Anula lo que el .env compartido aporte: la app no recibe credenciales del superusuario ni del migrador.
+      POSTGRES_PASSWORD: ""
+      AGENTE_MIGRADOR_PASSWORD: ""
       DB_ROLES_SEPARADOS: "true"
       DB_AUTO_CREATE: "false"
       # IP/CIDR del reverse proxy de confianza para X-Forwarded-For; nunca "*".
@@ -84,6 +89,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
       DATABASE_URL_MIGRADOR: ""
+      # Anula lo que el .env compartido aporte: la app no recibe credenciales del superusuario ni del migrador.
+      POSTGRES_PASSWORD: ""
+      AGENTE_MIGRADOR_PASSWORD: ""
       DB_ROLES_SEPARADOS: "true"
       DB_AUTO_CREATE: "false"
     depends_on: { migrador: { condition: service_completed_successfully } }
