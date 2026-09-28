@@ -20,8 +20,11 @@ check: check-backend check-frontend marcar-verificado ## Todo lo que corre CI (r
 check-backend: ## ruff + pyrefly + pytest rápido
 	@if [ -f backend/pyproject.toml ]; then cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyrefly check && uv run pytest -q -m "not integracion and not e2e and not eval"; else echo "backend no inicializado"; fi
 
-check-frontend: ## eslint + tsc + vitest + build
-	@if [ -f frontend/package.json ]; then cd frontend && npm run lint && npx tsc --noEmit -p tsconfig.app.json && npm run test -- --run && npm run build -- --configuration production; else echo "frontend no inicializado"; fi
+NODE_FRONT := $(shell cat frontend/.nvmrc 2>/dev/null)
+NPM_FRONT  := $(shell node -e "const [a,b,c]=process.versions.node.split('.').map(Number);process.stdout.write(a>22||(a===22&&(b>22||(b===22&&c>=3)))?'npm':'npx -y -p node@$(NODE_FRONT) -- npm')" 2>/dev/null)
+
+check-frontend: ## eslint + tsc + vitest + build + i18n (Node >= 22.22.3; ver frontend/.nvmrc)
+	@if [ -f frontend/package.json ]; then cd frontend && $(NPM_FRONT) run verificar; else echo "frontend no inicializado"; fi
 
 test-int: ## Pruebas de integración con contenedores
 	cd backend && uv run pytest -q -m integracion

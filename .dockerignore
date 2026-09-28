@@ -24,3 +24,7 @@ docs
 **/*.key
 **/*.p12
 **/secrets
+frontend/coverage
+frontend/test-results
+frontend/playwright-report
+frontend/e2e

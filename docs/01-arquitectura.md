@@ -182,3 +182,5 @@ La readiness (`/api/v1/salud/listo`) incluye la sonda `migraciones`: `alembic_ve
 | 0009 | Auditoría append-only con `secuencia`, hash encadenado calculado por trigger, triggers de inmutabilidad y `REVOKE` al rol de aplicación. |
 | 0010 | procrastinate en esquema `procrastinate` versionado por Alembic (SQL copiado), checkpointer en esquema `langgraph` vía `setup()`, bootstrap con driver psycopg y privilegios explícitos por esquema. |
 | 0011 | Pruebas de integración con PostgreSQL efímero: `PRUEBAS_PG_DSN`, Docker (testcontainers) o binarios locales con clúster temporal; nunca `skip`. |
+| 0012 | Panel en el mismo origen que la API (proxy `/api/`), CSP estricta con nonce de estilos por petición (`sub_filter` + `ngCspNonce`), Trusted Types, `connect-src 'self'` y fuentes autoalojadas. |
+| 0013 | Cliente de API generado con `ng-openapi-gen` desde una instantánea versionada del OpenAPI exportada con la fábrica del backend; API simulada incluida solo por configuración de build (`mocks`, `e2e`). |
