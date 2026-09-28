@@ -32,8 +32,8 @@ def test_alembic_una_sola_head() -> None:
     assert (len(heads), revision_head()) == (1, heads[0])
 
 
-def test_alembic_head_es_la_revision_de_procrastinate() -> None:
-    assert revision_head() == "0004_procrastinate_3_10_0"
+def test_alembic_head_es_la_ultima_revision() -> None:
+    assert revision_head() == "0005_revocar_alembic_version"
 
 
 def test_alembic_varias_heads_lanzan_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -42,10 +42,11 @@ def test_alembic_varias_heads_lanzan_error(monkeypatch: pytest.MonkeyPatch) -> N
         revision_head()
 
 
-def test_alembic_hay_cuatro_revisiones_en_cadena() -> None:
+def test_alembic_revisiones_en_cadena() -> None:
     script = ScriptDirectory.from_config(configuracion_alembic())
     cadena = [rev.revision for rev in script.walk_revisions()]
     assert cadena == [
+        "0005_revocar_alembic_version",
         "0004_procrastinate_3_10_0",
         "0003_config_agentes_taxonomia",
         "0002_identidad_auditoria",

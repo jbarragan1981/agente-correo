@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from app.domain.catalogo_inicial import CLAUSULA_DATOS_NO_CONFIABLES, catalogo_inicial
+from app.infrastructure.db.bootstrap.migraciones import revision_head
 from tests.integracion.conftest import BasePrueba
 from tests.integracion.soporte_bd import AvisoCapturado, bootstrap_en_proceso
 
@@ -149,7 +150,7 @@ async def test_semillas_auditoria_de_la_primera_ejecucion(sembrada: BasePrueba) 
         "bd.migrada",
         "bd.semillas_aplicadas",
     ]
-    assert filas[1][1] == {"desde": None, "hasta": "0004_procrastinate_3_10_0"}
+    assert filas[1][1] == {"desde": None, "hasta": revision_head()}
     assert filas[2][1]["insertadas"]["categorias"] == len(catalogo_inicial().taxonomia.categorias)
 
 

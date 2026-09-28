@@ -1,9 +1,13 @@
 """Privilegios explícitos del rol de aplicación por esquema (ADR-0010).
 
 Lo usan las revisiones de `backend/alembic/versions`. La función SQL
-`agente_conceder_privilegios(esquema)` la crea la revisión 0001. Es idempotente
-y no hace nada si los roles `agente_app`/`agente_lectura` no existen (modo de rol único). Al
-final revoca a `agente_app` cualquier privilegio de modificación sobre `auditoria`.
+`agente_conceder_privilegios(esquema)` la crea la revisión 0001 (v1) y la reemplaza la 0005
+(v2). Es idempotente y no hace nada si los roles `agente_app`/`agente_lectura` no existen (modo
+de rol único). Al final revoca a `agente_app` cualquier privilegio de modificación sobre
+`auditoria` y, desde la v2, sobre `alembic_version` (BUG-03: la sonda de readiness solo
+necesita `SELECT`; con DML la API podría falsear la revisión tras una inyección SQL).
+
+Las revisiones publicadas son inmutables: la v1 no cambia; la v2 se define aparte.
 """
 
 from typing import Final
@@ -51,6 +55,26 @@ END
 $$
 """
 
+REVOCAR_AUDITORIA: Final = """    IF to_regclass('public.auditoria') IS NOT NULL THEN
+      REVOKE UPDATE, DELETE, TRUNCATE ON public.auditoria FROM agente_app;
+    END IF;
+"""
+REVOCAR_ALEMBIC_VERSION: Final = """    IF to_regclass('public.alembic_version') IS NOT NULL THEN
+      REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.alembic_version FROM agente_app;
+    END IF;
+"""
+CREAR_FUNCION_V2: Final = CREAR_FUNCION.replace(
+    REVOCAR_AUDITORIA, REVOCAR_AUDITORIA + REVOCAR_ALEMBIC_VERSION
+)
+CONCEDER_ALEMBIC_VERSION: Final = """
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agente_app')
+     AND to_regclass('public.alembic_version') IS NOT NULL THEN
+    GRANT INSERT, UPDATE, DELETE ON public.alembic_version TO agente_app;
+  END IF;
+END $$
+"""
+
 REVOCAR_EJECUCION: Final = (
     "REVOKE EXECUTE ON FUNCTION public.agente_conceder_privilegios(text) FROM PUBLIC"
 )
@@ -62,6 +86,19 @@ def crear_funcion_privilegios() -> None:
     """Crea la función de privilegios y la reserva al propietario."""
     op.execute(CREAR_FUNCION)
     op.execute(REVOCAR_EJECUCION)
+
+
+def crear_funcion_privilegios_v2() -> None:
+    """Reemplaza la función por la v2, que además protege `alembic_version`."""
+    op.execute(CREAR_FUNCION_V2)
+    op.execute(REVOCAR_EJECUCION)
+
+
+def restaurar_funcion_privilegios_v1() -> None:
+    """Vuelve a la v1 y restituye el DML sobre `alembic_version` que concedía (downgrade)."""
+    op.execute(CREAR_FUNCION)
+    op.execute(REVOCAR_EJECUCION)
+    op.execute(CONCEDER_ALEMBIC_VERSION)
 
 
 def borrar_funcion_privilegios() -> None:

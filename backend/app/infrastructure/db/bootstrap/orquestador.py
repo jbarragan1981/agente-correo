@@ -170,9 +170,10 @@ async def ejecutar_bootstrap(settings: Settings, avisos: AvisoOperadorPort) -> R
         url_migrador, url_app = urls_bootstrap(settings)
         nombre = nombre_base(url_migrador)
     async with paso("espera"):
-        await esperar_postgres(url_migrador, max_s=settings.db_espera_max_s)
+        estado = await esperar_postgres(url_migrador, max_s=settings.db_espera_max_s)
     async with paso("creacion"):
-        await asegurar_base(url_migrador, nombre, crear=settings.db_auto_create)
+        if not estado.base_existe:
+            await asegurar_base(url_migrador, nombre, crear=settings.db_auto_create)
     motor = create_async_engine(url_migrador, poolclass=NullPool)
     try:
         async with bloqueo_bootstrap(motor, timeout_s=settings.db_bootstrap_lock_timeout_s):

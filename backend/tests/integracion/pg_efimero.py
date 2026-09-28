@@ -63,10 +63,36 @@ def _version_mayor(servidor: ServidorPg) -> ServidorPg:
     """Consulta la versión mayor del servidor."""
     with servidor.conectar() as conexion:
         fila = conexion.execute("SHOW server_version_num").fetchone()
-    version = int(str(fila[0])) // 10000 if fila else 0
+    version = int(_texto(fila[0])) // 10000 if fila else 0
     return ServidorPg(
         servidor.host, servidor.puerto, servidor.usuario, servidor.contrasena, version
     )
+
+
+class ServidorNoUtf8(RuntimeError):
+    """El servidor de `PRUEBAS_PG_DSN` no usa codificación UTF8."""
+
+    def __init__(self, codificacion: str) -> None:
+        super().__init__(
+            f"PRUEBAS_PG_DSN apunta a un servidor con server_encoding={codificacion}; las pruebas "
+            "necesitan UTF8. Crea el clúster con `initdb --encoding=UTF8 --locale=C` (ADR-0011) "
+            "o usa otro servidor."
+        )
+
+
+def _texto(valor: object) -> str:
+    """Valor de `SHOW` como texto (con SQL_ASCII psycopg lo devuelve en bytes)."""
+    return valor.decode("ascii", "replace") if isinstance(valor, bytes) else str(valor)
+
+
+def exigir_utf8(servidor: ServidorPg, base: str = "postgres") -> ServidorPg:
+    """Falla con un mensaje claro si el servidor no es UTF8 (BUG-07)."""
+    with servidor.conectar(base) as conexion:
+        fila = conexion.execute("SHOW server_encoding").fetchone()
+    codificacion = _texto(fila[0]) if fila else "desconocida"
+    if codificacion.upper() != "UTF8":
+        raise ServidorNoUtf8(codificacion)
+    return servidor
 
 
 def _desde_dsn(dsn: str) -> ServidorPg:
@@ -209,7 +235,7 @@ def servidor_efimero() -> Iterator[ServidorPg]:
     """Resuelve y entrega un servidor desechable; lo apaga y borra al salir si lo creó."""
     dsn = os.environ.get(VARIABLE_DSN)
     if dsn:
-        yield _version_mayor(_desde_dsn(dsn))
+        yield _version_mayor(exigir_utf8(_desde_dsn(dsn)))
         return
     if _docker_disponible():
         with _con_docker() as servidor:

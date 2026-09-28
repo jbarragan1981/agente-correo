@@ -7,6 +7,7 @@ significa que el servidor ya responde; una credencial rechazada no se arregla es
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Final
 
 import asyncpg
@@ -28,6 +29,14 @@ Dormir = Callable[[float], Awaitable[None]]
 Reloj = Callable[[], float]
 
 _log = obtener_logger(__name__)
+
+
+@dataclass(frozen=True)
+class EstadoServidor:
+    """Resultado de la espera: intentos y si la base destino ya existe."""
+
+    intentos: int
+    base_existe: bool
 
 
 async def conectar_asyncpg(url: URL, timeout_s: float) -> None:
@@ -54,8 +63,13 @@ async def esperar_postgres(
     conectar: Conectar = conectar_asyncpg,
     dormir: Dormir = asyncio.sleep,
     reloj: Reloj = time.monotonic,
-) -> int:
-    """Reintenta hasta que el servidor responda; devuelve el número de intentos."""
+) -> EstadoServidor:
+    """Reintenta hasta que el servidor responda.
+
+    Si la conexión a la base destino entra, la base existe; `InvalidCatalogName` indica que
+    el servidor responde pero la base falta. Así solo hace falta tocar la base de
+    mantenimiento `postgres` cuando hay que crear la base (BUG-06).
+    """
     limite = reloj() + max_s
     espera = ESPERA_INICIAL_S
     intentos = 0
@@ -64,7 +78,7 @@ async def esperar_postgres(
         try:
             await conectar(url, min(TIMEOUT_CONEXION_S, max_s))
         except asyncpg.InvalidCatalogNameError:
-            return intentos
+            return EstadoServidor(intentos, base_existe=False)
         except ERRORES_DE_CREDENCIAL as exc:
             raise AutenticacionRechazada(sqlstate=exc.sqlstate) from None
         except (OSError, TimeoutError, asyncpg.PostgresError) as exc:
@@ -75,4 +89,4 @@ async def esperar_postgres(
             await dormir(min(espera, restante))
             espera = siguiente_espera(espera)
         else:
-            return intentos
+            return EstadoServidor(intentos, base_existe=True)

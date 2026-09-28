@@ -29,7 +29,9 @@ SELECT
   ) AS propietario_de_tablas,
   has_table_privilege('public.auditoria', 'UPDATE') AS update_en_auditoria,
   has_table_privilege('public.auditoria', 'DELETE') AS delete_en_auditoria,
-  has_table_privilege('public.auditoria', 'TRUNCATE') AS truncate_en_auditoria
+  has_table_privilege('public.auditoria', 'TRUNCATE') AS truncate_en_auditoria,
+  has_table_privilege('public.alembic_version', 'INSERT, UPDATE, DELETE, TRUNCATE')
+    AS modifica_alembic_version
 FROM pg_roles r WHERE r.rolname = current_user
 """
 CONSULTA_MIGRADOR = text(
@@ -49,6 +51,7 @@ COMPROBACIONES_APP: Final = (
     "update_en_auditoria",
     "delete_en_auditoria",
     "truncate_en_auditoria",
+    "modifica_alembic_version",
 )
 
 

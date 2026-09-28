@@ -208,6 +208,38 @@ async def test_roles_update_heredado_sobre_auditoria_falla_cerrado(
     assert fallidas == ("app.update_en_auditoria",)
 
 
+async def test_roles_dml_heredado_sobre_alembic_version_falla_cerrado(
+    base_limpia: BasePrueba, roles_separados: RolesPrueba
+) -> None:
+    await _bootstrap_separado(roles_separados)
+    intruso = sql.Identifier(f"intruso_av_{base_limpia.nombre}")
+    with base_limpia.conectar() as conexion:
+        conexion.execute(sql.SQL("CREATE ROLE {} NOLOGIN").format(intruso))
+        try:
+            conexion.execute(sql.SQL("GRANT UPDATE ON alembic_version TO {}").format(intruso))
+            conexion.execute(sql.SQL("GRANT {} TO agente_app").format(intruso))
+            fallidas = await _comprobaciones_fallidas(roles_separados, roles_separados.url_app)
+        finally:
+            conexion.execute(sql.SQL("REVOKE ALL ON alembic_version FROM {}").format(intruso))
+            conexion.execute(sql.SQL("DROP ROLE {}").format(intruso))
+    assert fallidas == ("app.modifica_alembic_version",)
+
+
+async def test_roles_dml_directo_sobre_alembic_version_lo_revoca_el_bootstrap(
+    base_limpia: BasePrueba, roles_separados: RolesPrueba
+) -> None:
+    await _bootstrap_separado(roles_separados)
+    with base_limpia.conectar() as conexion:
+        conexion.execute("GRANT INSERT, UPDATE, DELETE ON alembic_version TO agente_app")
+    await _bootstrap_separado(roles_separados)
+    with _app(base_limpia, roles_separados) as conexion:
+        fila = conexion.execute(
+            "SELECT has_table_privilege('alembic_version', 'INSERT, UPDATE, DELETE'), "
+            "(SELECT count(*) FROM alembic_version)"
+        ).fetchone()
+    assert fila == (False, 1)
+
+
 async def test_roles_migrador_superusuario(
     base_limpia: BasePrueba, roles_separados: RolesPrueba
 ) -> None:

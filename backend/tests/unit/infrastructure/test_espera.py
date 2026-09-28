@@ -8,6 +8,7 @@ from app.infrastructure.db.bootstrap.errores import AutenticacionRechazada, BdNo
 from app.infrastructure.db.bootstrap.espera import (
     ESPERA_MAXIMA_S,
     Conectar,
+    EstadoServidor,
     esperar_postgres,
     siguiente_espera,
 )
@@ -43,15 +44,15 @@ def _conector(fallos: list[BaseException]) -> Conectar:
 
 async def test_espera_conecta_al_primer_intento() -> None:
     reloj = RelojFalso()
-    intentos = await esperar_postgres(URL_PRUEBA, 10, _conector([]), reloj.dormir, reloj)
-    assert (intentos, reloj.esperas) == (1, [])
+    estado = await esperar_postgres(URL_PRUEBA, 10, _conector([]), reloj.dormir, reloj)
+    assert (estado, reloj.esperas) == (EstadoServidor(1, base_existe=True), [])
 
 
 async def test_espera_reintenta_con_backoff_exponencial() -> None:
     reloj = RelojFalso()
     fallos: list[BaseException] = [ConnectionRefusedError()] * 4
-    intentos = await esperar_postgres(URL_PRUEBA, 60, _conector(fallos), reloj.dormir, reloj)
-    assert (intentos, reloj.esperas) == (5, [0.5, 1.0, 2.0, 4.0])
+    estado = await esperar_postgres(URL_PRUEBA, 60, _conector(fallos), reloj.dormir, reloj)
+    assert (estado.intentos, estado.base_existe, reloj.esperas) == (5, True, [0.5, 1.0, 2.0, 4.0])
 
 
 def test_espera_backoff_no_supera_el_maximo() -> None:
@@ -61,7 +62,8 @@ def test_espera_backoff_no_supera_el_maximo() -> None:
 async def test_espera_base_inexistente_cuenta_como_servidor_disponible() -> None:
     reloj = RelojFalso()
     fallos: list[BaseException] = [asyncpg.InvalidCatalogNameError("no existe")]
-    assert await esperar_postgres(URL_PRUEBA, 10, _conector(fallos), reloj.dormir, reloj) == 1
+    estado = await esperar_postgres(URL_PRUEBA, 10, _conector(fallos), reloj.dormir, reloj)
+    assert estado == EstadoServidor(1, base_existe=False)
 
 
 async def test_espera_credencial_rechazada_falla_sin_esperar() -> None:
@@ -87,4 +89,5 @@ async def test_espera_agota_el_tiempo_con_bd_no_disponible() -> None:
 async def test_espera_arranque_en_curso_se_reintenta() -> None:
     reloj = RelojFalso()
     fallos: list[BaseException] = [asyncpg.CannotConnectNowError("arrancando"), TimeoutError()]
-    assert await esperar_postgres(URL_PRUEBA, 10, _conector(fallos), reloj.dormir, reloj) == 3
+    estado = await esperar_postgres(URL_PRUEBA, 10, _conector(fallos), reloj.dormir, reloj)
+    assert estado == EstadoServidor(3, base_existe=True)

@@ -354,11 +354,6 @@ def base_postgres_restringida(postgres_efimero: ServidorPg) -> Iterator[None]:
             conexion.execute("GRANT CONNECT ON DATABASE postgres TO PUBLIC")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG-06: asegurar_base se conecta siempre a la base `postgres`, incluso con la base "
-    "destino ya accesible y DB_AUTO_CREATE=false",
-)
 def test_bootstrap_con_base_existente_no_necesita_acceso_a_la_base_postgres(
     backend_aislado: Path,
     base_limpia: BasePrueba,

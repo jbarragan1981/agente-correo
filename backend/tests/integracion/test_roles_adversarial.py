@@ -81,11 +81,6 @@ async def test_app_no_puede_falsificar_hash_secuencia_ni_fecha_de_la_auditoria(
     assert fila[1:] == (True, True, True)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG-03: agente_app hereda INSERT/UPDATE/DELETE sobre alembic_version "
-    "(privilegios_migracion.py concede DML a ALL TABLES sin excluirla)",
-)
 async def test_app_no_puede_modificar_alembic_version(
     base_limpia: BasePrueba, separada: RolesPrueba
 ) -> None:
@@ -93,9 +88,11 @@ async def test_app_no_puede_modificar_alembic_version(
         privilegios = conexion.execute(
             "SELECT has_table_privilege('alembic_version', 'UPDATE'), "
             "has_table_privilege('alembic_version', 'DELETE'), "
-            "has_table_privilege('alembic_version', 'INSERT')"
+            "has_table_privilege('alembic_version', 'INSERT'), "
+            "has_table_privilege('alembic_version', 'TRUNCATE'), "
+            "has_table_privilege('alembic_version', 'SELECT')"
         ).fetchone()
-    assert privilegios == (False, False, False)
+    assert privilegios == (False, False, False, False, True)
 
 
 @pytest.mark.parametrize("clave", ["con espacio y 'comillas'", 'dólar$HOME"y\\barra;--', "a\nb"])

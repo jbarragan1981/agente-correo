@@ -8,6 +8,11 @@ from app.infrastructure.db.bootstrap.privilegios import (
     COMPROBACIONES_APP,
     comprobaciones_fallidas,
 )
+from app.infrastructure.db.privilegios_migracion import (
+    CREAR_FUNCION,
+    CREAR_FUNCION_V2,
+    REVOCAR_ALEMBIC_VERSION,
+)
 from app.infrastructure.db.semillas import leer_prompt
 from app.infrastructure.seguridad.argon2 import GeneradorContrasenaSecrets, HasherArgon2
 
@@ -60,3 +65,11 @@ def test_privilegios_lista_todas_las_comprobaciones_fallidas() -> None:
         *(f"app.{nombre}" for nombre in COMPROBACIONES_APP),
         "app.mismo_rol_que_migrador",
     )
+
+
+def test_funcion_privilegios_v2_extiende_la_v1_con_alembic_version() -> None:
+    assert (
+        CREAR_FUNCION_V2.replace(REVOCAR_ALEMBIC_VERSION, ""),
+        REVOCAR_ALEMBIC_VERSION in CREAR_FUNCION,
+        "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.alembic_version" in CREAR_FUNCION_V2,
+    ) == (CREAR_FUNCION, False, True)

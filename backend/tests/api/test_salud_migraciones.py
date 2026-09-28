@@ -8,7 +8,7 @@ from app.application.ports.salud import ResultadoSonda
 from app.main import crear_app
 from tests.soporte import SondaFalsa, cliente_para, settings_prueba, usar_sondas
 
-HEAD = "0004_procrastinate_3_10_0"
+HEAD = "0005_revocar_alembic_version"
 
 
 def _app(base_datos: ResultadoSonda, migraciones: ResultadoSonda) -> FastAPI:

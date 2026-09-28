@@ -12,7 +12,7 @@ from sqlalchemy import Connection, Engine, create_engine, pool
 
 from app.infrastructure.db.bootstrap.migraciones import configuracion_alembic, revision_head
 from app.infrastructure.db.modelos import Base
-from tests.integracion.conftest import BasePrueba
+from tests.integracion.conftest import BasePrueba, RolesPrueba
 from tests.integracion.soporte_bd import TABLAS_PROPIAS, tablas_de
 
 REVISIONES: Final = [
@@ -141,7 +141,7 @@ def test_migraciones_downgrade_de_procrastinate_vacia_su_esquema(
     motor: Engine, base_limpia: BasePrueba
 ) -> None:
     _alembic(motor, "upgrade", "head")
-    _alembic(motor, "downgrade", "-1")
+    _alembic(motor, "downgrade", "0003_config_agentes_taxonomia")
     with base_limpia.conectar() as conexion:
         cola = tablas_de(conexion, "procrastinate")
         funciones = conexion.execute(
@@ -168,6 +168,22 @@ def test_migraciones_modelos_y_migraciones_coinciden(motor: Engine) -> None:
     _alembic(motor, "upgrade", "head")
     with motor.connect() as conexion:
         assert _diferencias(conexion) == []
+
+
+def test_migraciones_0005_revoca_y_su_downgrade_restituye_dml_en_alembic_version(
+    motor: Engine, base_limpia: BasePrueba, roles_separados: RolesPrueba
+) -> None:
+    consulta = "SELECT has_table_privilege('agente_app', 'alembic_version', 'UPDATE')"
+    _alembic(motor, "upgrade", "0004_procrastinate_3_10_0")
+    with base_limpia.conectar() as conexion:
+        antes = conexion.execute(consulta).fetchone()
+    _alembic(motor, "upgrade", "0005_revocar_alembic_version")
+    with base_limpia.conectar() as conexion:
+        tras_subir = conexion.execute(consulta).fetchone()
+    _alembic(motor, "downgrade", "-1")
+    with base_limpia.conectar() as conexion:
+        tras_bajar = conexion.execute(consulta).fetchone()
+    assert (antes, tras_subir, tras_bajar) == ((True,), (False,), (True,))
 
 
 def test_migraciones_upgrade_head_es_idempotente(motor: Engine) -> None:
