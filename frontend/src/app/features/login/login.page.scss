@@ -1,0 +1,58 @@
+.vm-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  background: var(--vm-fondo-pagina);
+}
+
+.vm-login-tarjeta {
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+}
+
+h1 {
+  margin: 8px 0 0;
+  color: var(--vm-texto);
+}
+
+.vm-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.vm-login-error p {
+  margin: 0 0 12px;
+  color: var(--vm-error-texto);
+  font-weight: 500;
+}
+
+.vm-login-enviar {
+  margin-top: 8px;
+  min-height: 44px;
+}
+
+.vm-login-nota,
+.vm-login-simulado {
+  margin: 16px 0 0;
+  color: var(--vm-texto-secundario);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.vm-login-simulado {
+  color: var(--vm-alerta-texto);
+}
+
+.vm-error-campo {
+  margin: -16px 0 8px;
+  padding: 0 16px;
+  color: var(--vm-error-texto);
+  font-size: 12px;
+  line-height: 16px;
+}

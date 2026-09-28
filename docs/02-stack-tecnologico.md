@@ -20,11 +20,12 @@ Versiones verificadas en PyPI / npm el 2026-09-28. Se fijan en `pyproject.toml` 
 | Observabilidad | **OpenTelemetry SDK 1.45** + instrumentación FastAPI/SQLAlchemy/httpx, **structlog 26** (JSON), **Langfuse 4** opcional | Trazas distribuidas y de LLM; métricas Prometheus; logs correlacionados. |
 | Calidad Python | **ruff 0.16** (lint + format), **pyrefly 1.3** o **mypy 2.3** (tipos), **pytest 9** + `pytest-asyncio` + `httpx` + `testcontainers` | Rápido, estricto, CI-friendly. |
 | Seguridad de código | **bandit**, **pip-audit**, **semgrep**, **gitleaks** | SAST, CVEs, secretos. |
-| Frontend | **Angular 22.2** (standalone, zoneless, signals, Signal Forms) | Última versión estable; rendimiento y DX modernas. |
-| UI kit | **Angular Material 22 + CDK** + **Tailwind CSS 4.3** | Componentes accesibles + utilidades con tokens de marca. |
+| Frontend | **Angular 22.2** (standalone, zoneless, signals, Signal Forms) sobre **Node ≥ 22.22.3** (`frontend/.nvmrc` = 22.23.3) y **TypeScript 6.0** | Última versión estable; rendimiento y DX modernas. Angular 22.2 exige `typescript >=6.0 <6.1` (no 7.0) y su CLI rechaza Node < 22.22.3. |
+| UI kit | **Angular Material 22 + CDK** + **Tailwind CSS 4.3** (en un CSS aparte, sin preflight) + **Inter** y **Material Icons** autoalojadas (`@fontsource-variable/inter`, `@fontsource/material-icons`) | Componentes accesibles + utilidades con tokens de marca; sin dominios externos en la CSP (ADR-0012). |
 | Estado | **@ngrx/signals 22** | Stores basados en signals, simple y tipado. |
-| Gráficas | **ECharts 6 + ngx-echarts 22** | Dashboards ricos, temas, buen rendimiento con series grandes. |
-| Pruebas front | **Vitest 5** (unitarias, por defecto en Angular 21+), **Playwright 1.63** (e2e) | Rápido, estándar. |
+| Gráficas | **ECharts 6 + ngx-echarts 22** (se instalan en E1.10) | Dashboards ricos, temas, buen rendimiento con series grandes. |
+| Pruebas front | **Vitest 5** (unitarias, builder `@angular/build:unit-test` + jsdom) con **@vitest/coverage-v8**, **Playwright 1.56.1** (e2e) + **@axe-core/playwright** | Rápido, estándar. Playwright queda fijado en 1.56.1 porque el Chromium disponible en `/opt/pw-browsers` es chromium-1194 (Chromium 141) y el CDN de navegadores no es accesible; E0.5 decide la subida junto con la imagen de CI. |
+| Cliente de API | **ng-openapi-gen 1.1** sobre `frontend/openapi/openapi.json` versionado | Cliente tipado generado del OpenAPI real (ADR-0013); `openapi-typescript` exige TypeScript 5. |
 | Contenedores | **Docker Compose**, imágenes distroless/`python:3.12-slim`, usuario sin privilegios | Portabilidad on-premise y nube. |
 | CI/CD | **GitHub Actions** | Lint, tipos, pruebas, SAST, build de imágenes, escaneo de contenedor (Trivy). |
 
@@ -125,23 +126,29 @@ dev = ["pytest>=9", "pytest-asyncio", "pytest-cov", "testcontainers[postgres]", 
 ```json
 {
   "dependencies": {
-    "@angular/core": "^22.2.0", "@angular/common": "^22.2.0", "@angular/router": "^22.2.0",
-    "@angular/forms": "^22.2.0", "@angular/material": "^22.2.0", "@angular/cdk": "^22.2.0",
-    "@ngrx/signals": "^22.0.1", "echarts": "^6.1.0", "ngx-echarts": "^22.0.0", "tailwindcss": "^4.3.3"
+    "@angular/core": "22.2.0", "@angular/common": "22.2.0", "@angular/router": "22.2.0",
+    "@angular/forms": "22.2.0", "@angular/material": "22.2.0", "@angular/cdk": "22.2.0",
+    "@angular/localize": "22.2.0", "@ngrx/signals": "22.0.1",
+    "@fontsource-variable/inter": "5.3.0", "@fontsource/material-icons": "5.3.0"
   },
   "devDependencies": {
-    "@angular/cli": "^22.2.0", "typescript": "~7.0", "vitest": "^5.0", "@playwright/test": "^1.63",
-    "eslint": "^9", "angular-eslint": "^22", "prettier": "^3"
-  }
+    "@angular/cli": "22.2.0", "typescript": "6.0.3", "vitest": "5.0.2", "@vitest/coverage-v8": "5.0.2",
+    "@playwright/test": "1.56.1", "@axe-core/playwright": "4.13.0", "ng-openapi-gen": "1.1.0",
+    "tailwindcss": "4.3.3", "@tailwindcss/postcss": "4.3.3",
+    "eslint": "10.11.0", "angular-eslint": "22.5.0", "typescript-eslint": "8.69.0", "prettier": "3.9.9"
+  },
+  "engines": { "node": "^22.22.3 || ^24.15.0" }
 }
 ```
+
+Todas las dependencias directas usan versión exacta (`.npmrc`: `save-exact=true`, `engine-strict=true`) y `package-lock.json` es obligatorio (`npm ci`). `echarts` y `ngx-echarts` se añaden en E1.10. Con el Node del sistema anterior a 22.22.3 se usa `nvm use` o `npx -y -p node@22.23.3 -- npm run <script>`; `make check-frontend` lo hace automáticamente.
 
 ## 5. Herramientas de desarrollo
 
 | Herramienta | Uso |
 |---|---|
 | `make dev` | Levanta PostgreSQL en Docker, backend con recarga y frontend con `ng serve`. |
-| `make check` | ruff + pyrefly + pytest + eslint + vitest (lo mismo que CI). |
+| `make check` | ruff + pyrefly + pytest + `npm run verificar` del frontend (eslint, tsc, vitest con cobertura, build de producción, i18n) (lo mismo que CI). |
 | `make security` | bandit, pip-audit, npm audit, gitleaks, semgrep. |
 | `pre-commit` | Hooks locales espejo de los hooks de Claude Code (`.claude/hooks`). |
 | Renovate | Actualización de dependencias con PR automáticos. |

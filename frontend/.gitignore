@@ -1,0 +1,23 @@
+# Compilados
+/dist
+/tmp
+/out-tsc
+
+# Node
+/node_modules
+npm-debug.log
+
+# Editores
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Varios
+/.angular/cache
+.sass-cache/
+/coverage
+/test-results
+/playwright-report
+/blob-report
+__screenshots__/
+.DS_Store

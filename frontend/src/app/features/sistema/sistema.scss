@@ -1,0 +1,23 @@
+.vm-pagina-sistema {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.vm-pagina-suelta {
+  margin: 48px auto;
+  padding: 0 24px;
+}
+
+.vm-icono-construccion {
+  vertical-align: middle;
+  margin-inline-end: 8px;
+  color: var(--vm-alerta-texto);
+}
+
+h1 {
+  margin: 0;
+  color: var(--vm-texto);
+}

@@ -1,0 +1,80 @@
+<h1 class="vm-titulo-pagina vm-inicio-titulo" i18n="@@inicio.saludo">
+  Hola, {{ sesion.nombreVisible() }}
+</h1>
+
+<mat-card appearance="raised" class="vm-inicio-tarjeta">
+  <mat-card-header>
+    <mat-card-title>
+      <h2 class="vm-titulo-seccion" id="titulo-estado" i18n="@@inicio.estado_titulo">
+        Estado del sistema
+      </h2>
+    </mat-card-title>
+  </mat-card-header>
+  <mat-card-content aria-labelledby="titulo-estado" aria-live="polite">
+    @if (salud.isLoading()) {
+      <mat-progress-bar
+        mode="indeterminate"
+        i18n-aria-label="@@inicio.comprobando"
+        aria-label="Comprobando el estado"
+      />
+      <p class="vm-cuerpo" i18n="@@inicio.comprobando_texto">Comprobando el estado del sistema…</p>
+    } @else if (salud.hasValue()) {
+      <p class="vm-estado vm-estado-ok">
+        <mat-icon aria-hidden="true">check_circle</mat-icon>
+        <span i18n="@@inicio.listo">El sistema está listo.</span>
+      </p>
+      <ul class="vm-comprobaciones">
+        @for (fila of comprobacionesListo(); track fila.nombre) {
+          <li>
+            <span>{{ fila.nombre }}</span>
+            <span class="vm-estado-ok" i18n="@@salud.ok">Correcto</span>
+          </li>
+        }
+      </ul>
+    } @else if (error()?.tipo === 'no_listo') {
+      <p class="vm-estado vm-estado-falla">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span i18n="@@inicio.no_listo">El sistema no está listo.</span>
+      </p>
+      <ul class="vm-comprobaciones">
+        @for (fila of comprobacionesFallidas(); track fila.nombre) {
+          <li>
+            <span>{{ fila.nombre }}</span>
+            @if (fila.ok) {
+              <span class="vm-estado-ok" i18n="@@salud.ok">Correcto</span>
+            } @else {
+              <span class="vm-estado-falla" i18n="@@salud.falla">Falla</span>
+            }
+          </li>
+        }
+      </ul>
+      <button type="button" mat-button (click)="reintentar()" i18n="@@inicio.reintentar">
+        Reintentar
+      </button>
+    } @else {
+      <p class="vm-estado vm-estado-falla" role="alert">
+        <mat-icon aria-hidden="true">cloud_off</mat-icon>
+        <span>{{ error()?.mensaje }}</span>
+      </p>
+      <button type="button" mat-button (click)="reintentar()" i18n="@@inicio.reintentar">
+        Reintentar
+      </button>
+    }
+  </mat-card-content>
+</mat-card>
+
+@if (accesos().length > 0) {
+  <section class="vm-accesos" aria-labelledby="titulo-accesos">
+    <h2 class="vm-titulo-seccion" id="titulo-accesos" i18n="@@inicio.accesos">Accesos</h2>
+    <ul class="vm-accesos-lista">
+      @for (acceso of accesos(); track acceso.ruta) {
+        <li>
+          <a class="vm-acceso" [routerLink]="'/' + acceso.ruta">
+            <mat-icon aria-hidden="true">{{ acceso.icono }}</mat-icon>
+            <span>{{ acceso.etiqueta }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  </section>
+}

@@ -1,0 +1,55 @@
+/*
+ * Tailwind 4 para layout, espaciado y tipografía (Tailwind 4 no admite Sass: va en un CSS aparte).
+ * Sin preflight para no alterar Angular Material. Los colores salen solo de tokens.css.
+ */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  --color-*: initial;
+  --color-vm-marca: var(--vm-azul-marca);
+  --color-vm-oscuro: var(--vm-oscuro);
+  --color-vm-azul-oscuro: var(--vm-azul-oscuro);
+  --color-vm-fondo: var(--vm-fondo-pagina);
+  --color-vm-superficie: var(--vm-superficie);
+  --color-vm-texto: var(--vm-texto);
+  --color-vm-texto-secundario: var(--vm-texto-secundario);
+  --color-vm-enlace: var(--vm-enlace);
+  --color-vm-error: var(--vm-error-texto);
+  --color-vm-exito: var(--vm-exito-texto);
+  --color-vm-alerta: var(--vm-alerta-texto);
+  --font-sans: var(--vm-fuente);
+  --radius-vm-card: var(--vm-radio-card);
+  --radius-vm-control: var(--vm-radio-control);
+}
+
+@utility vm-titulo-pagina {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+}
+
+@utility vm-titulo-seccion {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+@utility vm-cuerpo {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+@utility vm-etiqueta {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+@utility vm-kpi {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

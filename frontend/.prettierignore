@@ -1,0 +1,8 @@
+src/app/core/api/generado
+openapi
+src/locale
+dist
+coverage
+test-results
+playwright-report
+.angular

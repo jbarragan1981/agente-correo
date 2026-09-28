@@ -8,14 +8,12 @@ description: >-
 
 Referencia completa: `docs/06-frontend-angular.md`.
 
-## Arranque del proyecto (una vez)
-```
-cd frontend
-npx @angular/cli@22 new panel --standalone --style=scss --routing --ssr=false --skip-git --package-manager=npm
-npm i @angular/material@22 @angular/cdk@22 @ngrx/signals@22 echarts@6 ngx-echarts@22 tailwindcss@4 @tailwindcss/postcss
-ng add @angular/material  # tema personalizado, tipografía Inter, animaciones
-```
-`app.config.ts`: `provideZonelessChangeDetection()`, `provideRouter(routes, withComponentInputBinding(), withViewTransitions())`, `provideHttpClient(withInterceptors([authInterceptor, errorInterceptor]))`, `provideAnimationsAsync()`, `provideEchartsCore({ echarts: () => import('echarts') })`.
+## Proyecto (creado en E0.4)
+Node ≥ 22.22.3 (`frontend/.nvmrc` = 22.23.3; con Node anterior: `npx -y -p node@22.23.3 -- npm run <script>`), TypeScript 6.0, dependencias con versión exacta (`save-exact`, `engine-strict`), `package-lock.json` obligatorio. ECharts y `ngx-echarts` no se instalan hasta E1.10.
+
+`app.config.ts`: `provideZonelessChangeDetection()`, `provideRouter(routes, withComponentInputBinding(), withViewTransitions())`, `provideHttpClient(withFetch(), withInterceptors([correlacionInterceptor, authInterceptor, erroresInterceptor, ...interceptoresEntorno]))`, `provideApiConfiguration('')` (mismo origen), `TituloStrategy`, `DEFAULT_CURRENCY_CODE` `USD`, `provideAppInitializer(() => inject(SesionStore).restaurar())`. Material 22 no necesita `provideAnimationsAsync()`.
+
+Piezas existentes que se reutilizan: `core/errores` (`ErrorApp`, `aErrorApp`, `errorDeRecurso`, contexto `SIN_TOKEN`/`SILENCIAR_ERRORES`/`REINTENTADA`), `core/auth` (`SesionStore`, guards `autenticadoGuard`/`invitadoGuard`/`rolGuard`, `rutaInternaSegura`), `core/layout/navegacion.ts` (única fuente de secciones y roles), `shared/forms/validadores.ts` (única entrada a Signal Forms), `shared/ui/shell` (`vm-shell`). Cliente de API: `npm run api:exportar && npm run api:generar` (ng-openapi-gen, ADR-0013); en features, `inject(Api).invoke(fn, params)` dentro de `resource()`. API simulada de auth en `npm run start:mocks` (usuarios `*@viamatica.test`, ver `frontend/README.md`).
 
 ## Tokens (`src/styles/tokens.css`)
 ```css
@@ -29,9 +27,11 @@ ng add @angular/material  # tema personalizado, tipografía Inter, animaciones
 }
 :root[data-tema="oscuro"] { --vm-blanco:#0D1B2A; --vm-gris-fondo:#122240; --vm-gris-texto:#B8C7D6; --vm-azul-oscuro:#E6F1F8; --vm-azul-marca:#00D4FF; }
 ```
-Tema Material M3: `primary` desde `#3AAFDE`, `tertiary` desde `#1B3A5C`, `error` `#D64545`, superficie `#F0F6FA`, tipografía Inter. Tailwind: `@theme { --color-vm-marca: var(--vm-azul-marca); … }` para usar `bg-vm-marca`, `text-vm-oscuro`.
+Además, variantes AA para texto (`--vm-texto-sobre-marca`, `--vm-enlace`, `--vm-error-texto`, `--vm-exito-texto`, `--vm-alerta-texto`, `--vm-foco`, `--vm-foco-inverso`) y tokens semánticos por tema (`--vm-fondo-pagina`, `--vm-superficie`, `--vm-texto`, `--vm-texto-secundario`, `--vm-sidebar-*`, `--vm-topbar-*`); ver `docs/06-frontend-angular.md` §3.1. Blanco sobre `#3AAFDE` no cumple AA: la marca va como relleno con `--vm-texto-sobre-marca`.
 
-Prohibido: hex fuera de `tokens.css`, estilos inline, `!important` salvo override documentado de Material.
+Tema Material M3: paleta generada en `src/styles/_paleta-m3.scss` (`ng generate @angular/material:theme-color`, primario `#3AAFDE`, terciario `#1B3A5C`, error `#D64545`, neutro `#F0F6FA`; no se edita) + `mat.theme-overrides` / `mat.<componente>-overrides` con `var(--vm-*)`. Tipografía Inter variable y Material Icons autoalojadas (`@fontsource`). Tailwind 4 va en `src/styles/tailwind.css` (CSS aparte, Tailwind no admite Sass; sin preflight) con `@theme { --color-*: initial; --color-vm-marca: var(--vm-azul-marca); … }`: solo existen colores `vm-*`. No se aplican clases de color de Tailwind sobre componentes Material.
+
+Prohibido: hex fuera de `tokens.css` (y del generado `_paleta-m3.scss`), estilos inline, `[innerHTML]`, `!important` salvo con comentario `// override-material:`. Lo comprueba `scripts/verificar-estilos.mjs` dentro de `npm run lint`.
 
 ## Patrones
 - **Datos**: `resource({ params: () => filtros(), loader: ({params}) => api.listar(params) })`; estados `isLoading()`, `error()`, `value()`; botón "Reintentar" en error; `reload()` en auto-refresh (dashboard cada 60 s con `interval` + `takeUntilDestroyed`).
@@ -56,6 +56,10 @@ Sin Material; Shadow DOM (`ViewEncapsulation.ShadowDom`); un solo bundle `widget
 
 ## Verificación antes de terminar
 ```
-npm run lint && npx tsc --noEmit -p tsconfig.app.json && npm run test -- --run && npm run build -- --configuration production
+cd frontend && npm run verificar      # lint (+ estilos + CSP), tsc app/spec, vitest con cobertura, build producción, i18n
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e    # Playwright 1.56.1 (login, guards, shell, CSP, axe)
+npm run api:verificar                 # OpenAPI y cliente generado al día (requiere uv)
 ```
-Presupuestos en `angular.json`: inicial 600 KB warn / 800 KB error; por ruta 250 KB. Accesibilidad: `npx playwright test e2e/a11y.spec.ts` (axe) en flujos críticos.
+Con Node del sistema < 22.22.3: `npx -y -p node@22.23.3 -- npm run verificar` (o `make check-frontend`, que lo resuelve solo). Tras tocar plantillas o `$localize`: `npm run i18n:extraer`. `npm run test -- --run` no existe en el builder de Angular 22: usa `npm run test:ci`.
+
+Presupuestos en `angular.json`: inicial 500 kB aviso / 600 kB error; cualquier script 250 kB error; estilos por componente 4/8 kB. Cobertura ≥ 80 % en `core/` y `shared/` (`scripts/verificar-cobertura.mjs`).

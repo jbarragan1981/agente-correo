@@ -52,7 +52,9 @@ Reglas de oro para prompts (se validan con el linter del editor y el hook de Cla
 ## 5. Seguridad de la API y la web
 
 - Cabeceras: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
-- CORS: allowlist explícita de orígenes del panel; credenciales solo para esos orígenes; el widget usa su propio endpoint con validación de `Origin` por sitio.
+- CSP del panel (ADR-0012): el panel se sirve en el mismo origen que la API (Nginx del contenedor `web` reenvía `/api/`), con `connect-src 'self'`, nonce por petición en `style-src`, Trusted Types, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` y sin orígenes de terceros (tipografías autoalojadas). Única fuente: `infra/nginx-cabeceras-panel.conf`; la `location /api/` no la añade y conserva las cabeceras propias de la API (`default-src 'none'`). `index.html` se sirve con `Cache-Control: no-store`.
+- Access token del panel solo en memoria (`SesionStore`); `Authorization` solo en rutas relativas `/api/` y nunca en `/auth/login|refresh|logout`; refresh reactivo único y compartido ante 401; redirecciones `?volver=` validadas con `rutaInternaSegura`. Los guards de rutas son de experiencia de usuario: la autorización la aplica el backend.
+- CORS: allowlist explícita de orígenes; el panel no la necesita (mismo origen) y `CORS_ORIGENES` queda para despliegues con otro origen; credenciales solo para esos orígenes; el widget usa su propio endpoint con validación de `Origin` por sitio.
 - Rate limiting (slowapi) por IP y por usuario; límites específicos en login, playground, webchat y envío.
 - Validación estricta: Pydantic `extra="forbid"`, tamaños máximos de body (1 MB API, 4 KB mensaje de chat), tipos de archivo permitidos.
 - SSRF: hosts IMAP/SMTP/webhook resueltos y verificados contra rangos privados (RFC 1918, link-local, loopback) salvo allowlist explícita del admin; sin redirecciones en webhooks; timeouts cortos.

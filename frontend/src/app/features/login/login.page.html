@@ -1,0 +1,95 @@
+<main class="vm-login">
+  <mat-card appearance="raised" class="vm-login-tarjeta">
+    @if (enviando()) {
+      <mat-progress-bar
+        mode="indeterminate"
+        i18n-aria-label="@@login.enviando"
+        aria-label="Iniciando sesión"
+      />
+    }
+    <mat-card-header>
+      <mat-card-title>
+        <h1 class="vm-titulo-pagina" i18n="@@login.titulo">Iniciar sesión</h1>
+      </mat-card-title>
+      <mat-card-subtitle i18n="@@login.subtitulo"
+        >Agente Correo · Panel de operación</mat-card-subtitle
+      >
+    </mat-card-header>
+
+    <mat-card-content>
+      <form class="vm-login-form" novalidate (submit)="enviar($event)">
+        <div class="vm-login-error" role="alert" aria-live="assertive">
+          @if (errorGeneral(); as mensaje) {
+            <p id="login-error-general">{{ mensaje }}</p>
+          }
+        </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label i18n="@@login.email">Correo electrónico</mat-label>
+          <input
+            matInput
+            id="login-email"
+            type="email"
+            autocomplete="username"
+            inputmode="email"
+            spellcheck="false"
+            autocapitalize="none"
+            [formField]="formulario.email"
+            [attr.aria-describedby]="errorEmail() ? 'login-email-error' : null"
+            [attr.aria-invalid]="errorEmail() !== null"
+          />
+        </mat-form-field>
+        @if (errorEmail(); as mensaje) {
+          <p id="login-email-error" class="vm-error-campo">{{ mensaje }}</p>
+        }
+
+        <mat-form-field appearance="outline">
+          <mat-label i18n="@@login.password">Contraseña</mat-label>
+          <input
+            matInput
+            id="login-password"
+            autocomplete="current-password"
+            [type]="mostrarPassword() ? 'text' : 'password'"
+            [formField]="formulario.password"
+            [attr.aria-describedby]="errorPassword() ? 'login-password-error' : null"
+            [attr.aria-invalid]="errorPassword() !== null"
+          />
+          <button
+            type="button"
+            mat-icon-button
+            matSuffix
+            [attr.aria-pressed]="mostrarPassword()"
+            i18n-aria-label="@@login.mostrar_password"
+            aria-label="Mostrar contraseña"
+            (click)="alternarPassword()"
+          >
+            <mat-icon aria-hidden="true">{{
+              mostrarPassword() ? 'visibility_off' : 'visibility'
+            }}</mat-icon>
+          </button>
+        </mat-form-field>
+        @if (errorPassword(); as mensaje) {
+          <p id="login-password-error" class="vm-error-campo">{{ mensaje }}</p>
+        }
+
+        <button
+          type="submit"
+          mat-flat-button
+          class="vm-login-enviar"
+          [disabled]="enviando()"
+          i18n="@@login.entrar"
+        >
+          Entrar
+        </button>
+      </form>
+      <p class="vm-login-nota" i18n="@@login.nota_cookie">
+        La sesión se mantiene mediante una cookie segura; no se guarda tu contraseña.
+      </p>
+      @if (modoSimulado) {
+        <p class="vm-login-simulado" role="note" i18n="@@login.nota_simulado">
+          Modo simulado: la autenticación usa usuarios de ejemplo; consulta frontend/README.md.
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+</main>

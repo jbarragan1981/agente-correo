@@ -1,0 +1,83 @@
+/*
+ * Tokens del sistema de diseño Viamatica (docs/06-frontend-angular.md §3.1).
+ * Única fuente de colores hexadecimales del panel (CA18). Los componentes usan var(--vm-*).
+ * Las variantes "-texto", --vm-enlace y --vm-texto-sobre-marca existen porque varios colores
+ * de marca no alcanzan contraste AA como texto (plan E0.4 §4.3.2).
+ */
+:root {
+  /* Marca */
+  --vm-azul-oscuro: #1b3a5c;
+  --vm-azul-medio: #2e86c1;
+  --vm-azul-marca: #3aafde;
+  --vm-azul-claro: #5bc0eb;
+  --vm-cyan: #00d4ff;
+  --vm-blanco: #ffffff;
+  --vm-gris-fondo: #f0f6fa;
+  --vm-gris-texto: #4a5568;
+  --vm-oscuro: #0d1b2a;
+  --vm-oscuro-footer: #0a1628;
+  --vm-exito: #1e9e6a;
+  --vm-alerta: #e0a100;
+  --vm-error: #d64545;
+
+  /* Variantes de texto con contraste AA (≥ 4,5 sobre --vm-blanco y --vm-gris-fondo) */
+  --vm-texto-sobre-marca: #0d1b2a;
+  --vm-enlace: #1f6fa3;
+  --vm-error-texto: #b83232;
+  --vm-exito-texto: #157a52;
+  --vm-alerta-texto: #8a6300;
+  --vm-foco: #1b3a5c;
+  --vm-foco-inverso: #00d4ff;
+
+  /* Semánticos */
+  --vm-fondo-pagina: #f0f6fa;
+  --vm-superficie: #ffffff;
+  --vm-texto: #0d1b2a;
+  --vm-texto-secundario: #4a5568;
+  --vm-borde: #5bc0eb;
+  --vm-sidebar-fondo: #1b3a5c;
+  --vm-sidebar-texto: #ffffff;
+  --vm-sidebar-acento: #00d4ff;
+  --vm-topbar-fondo: #0d1b2a;
+  --vm-topbar-texto: #ffffff;
+  --vm-aviso-fondo: #e0a100;
+  --vm-aviso-texto: #0d1b2a;
+
+  /* Forma, sombra y tipografía */
+  --vm-radio-card: 12px;
+  --vm-radio-control: 8px;
+  --vm-sombra: 0 1px 2px rgb(13 27 42 / 6%), 0 4px 12px rgb(13 27 42 / 6%);
+  --vm-fuente: 'Inter Variable', system-ui, sans-serif;
+  --vm-sidebar-ancho: 256px;
+  --vm-sidebar-ancho-colapsado: 72px;
+}
+
+:root[data-tema='oscuro'] {
+  --vm-blanco: #0d1b2a;
+  --vm-gris-fondo: #122240;
+  --vm-gris-texto: #b8c7d6;
+  --vm-azul-oscuro: #e6f1f8;
+  --vm-azul-marca: #00d4ff;
+
+  --vm-texto-sobre-marca: #0d1b2a;
+  --vm-enlace: #5bc0eb;
+  --vm-error-texto: #ff8a8a;
+  --vm-exito-texto: #5fd3a2;
+  --vm-alerta-texto: #f2c94c;
+  --vm-foco: #00d4ff;
+  --vm-foco-inverso: #00d4ff;
+
+  --vm-fondo-pagina: #122240;
+  --vm-superficie: #0d1b2a;
+  --vm-texto: #e6f1f8;
+  --vm-texto-secundario: #b8c7d6;
+  --vm-borde: #2e86c1;
+  --vm-sidebar-fondo: #0a1628;
+  --vm-sidebar-texto: #e6f1f8;
+  --vm-sidebar-acento: #00d4ff;
+  --vm-topbar-fondo: #0a1628;
+  --vm-topbar-texto: #e6f1f8;
+  --vm-aviso-fondo: #f2c94c;
+  --vm-aviso-texto: #0d1b2a;
+  --vm-sombra: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 12px rgb(0 0 0 / 30%);
+}
