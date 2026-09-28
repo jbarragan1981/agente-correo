@@ -54,4 +54,5 @@ def conninfo(url: str | URL, **opciones: str) -> str:
     libpq = _interpretar(url).set(drivername=DRIVER_LIBPQ)
     if opciones:
         libpq = libpq.update_query_dict(opciones)
-    return libpq.render_as_string(hide_password=False)
+    # SQLAlchemy deja los espacios sin codificar y libpq los rechaza (BUG-04 de QA de E0.2).
+    return libpq.render_as_string(hide_password=False).replace(" ", "%20")

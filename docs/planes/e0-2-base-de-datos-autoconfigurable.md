@@ -36,7 +36,7 @@ Quedan fuera por la regla de dividir: `sesiones_refresh` (su diseño depende de 
 | Clúster temporal | Probado: `runuser -u postgres -- initdb -D <dir> -U postgres --auth=scram-sha-256 --pwfile=<f>` y `pg_ctl start -o "-p 55432 -k <dir> -c listen_addresses=127.0.0.1"` arrancan en segundos. El directorio debe ser accesible por el usuario `postgres`: el scratchpad de la sesión (`/tmp/claude-0/...`, modo 700 de root) **no** sirve; `tempfile.mkdtemp()` en `/tmp` sí (el directorio se entrega con `chown` a `postgres`). |
 | Docker | CLI presente, sin daemon (sin testcontainers). `docker compose config` sí funciona (valida interpolación sin daemon). |
 | Compose `${VAR:?msg}` | Comprobado: falla la interpolación de cada archivo aunque un overlay defina el valor; por eso las contraseñas de desarrollo se aportan desde el `Makefile`, no desde el overlay. |
-| Dependencias (PyPI vía proxy) | `alembic 1.20.0`, `psycopg 3.3.6` (+ binary, pool 3.3.3), `procrastinate 3.10.0`, `langgraph-checkpoint-postgres 3.1.2` (+ `langgraph-checkpoint 4.2.0`), `uuid-utils 1.0.0`, `argon2-cffi 25.1.0`. **Trampa:** sin restricción explícita el resolvedor elige `langchain-core 0.3.76`, que rompe al importar el checkpointer; con `langchain-core>=1.0` (1.6.5) funciona. |
+| Dependencias (PyPI vía proxy) | `alembic 1.20.0`, `psycopg 3.3.6` (+ binary, pool 3.3.3), `procrastinate 3.10.0`, `langgraph-checkpoint-postgres 3.1.2` (+ `langgraph-checkpoint 4.2.0`), `uuid-utils 1.0.0` (ver nota de §5.1: se fijó `<1.0`), `argon2-cffi 25.1.0`. **Trampa:** sin restricción explícita el resolvedor elige `langchain-core 0.3.76`, que rompe al importar el checkpointer; con `langchain-core>=1.0` (1.6.5) funciona. |
 | procrastinate en esquema propio | `SchemaManager.get_schema()` no referencia `public.`; con `search_path=procrastinate` crea `procrastinate_jobs`, `_events`, `_periodic_defers`, `_workers` en ese esquema. |
 | Ejecución del SQL de procrastinate | Falla con SQLAlchemy+asyncpg (`cannot insert multiple commands into a prepared statement`) y con `exec_driver_sql` de psycopg (`%` como marcador). **Funciona** con `conexion.connection.dbapi_connection.cursor().execute(sql)` sobre `postgresql+psycopg`, síncrono o asíncrono vía `run_sync` (ADR-0010). |
 | Checkpointer | `AsyncPostgresSaver.from_conn_string(dsn + "?options=-csearch_path%3Dlanggraph").setup()` crea `checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations` en `langgraph`; segunda llamada idempotente. |
@@ -139,6 +139,8 @@ infra/
 └── sql/{roles.sql, 00-roles.sh}         # roles.sql reescrito (SQL puro, idempotente); 00-roles.sh asigna contraseñas
 Makefile                                  # COMPOSE_DEV, DEV_ENV, bootstrap, db-roles, test-int
 ```
+
+**Nota de dependencias (desviación registrada por QA, 2026-09-28).** `backend/pyproject.toml` fija `uuid-utils>=0.12,<1.0` (el lock resuelve 0.17.1) y `langchain-core>=1.6,<2` (1.6.5). El borrador pedía `uuid-utils>=1.0` y `langchain-core>=1.0`; uuid-utils 1.x rompe el checkpointer de LangGraph. `langsmith` se subió a 0.14.1 en el lock por un CVE de la versión anterior. Ver ADR-0010.
 
 ### 5.2 Configuración (`app/core/config.py`, ADR-0007 + ADR-0008)
 
@@ -463,7 +465,7 @@ class SondaMigraciones:                        # implementa SondaDependenciaPort
 
 | # | Tarea | Depende de | Paralelo con |
 |---|---|---|---|
-| B1 | Dependencias: `uv add "alembic>=1.20,<1.21" "psycopg[binary]>=3.3,<3.4" "procrastinate>=3.10,<3.11" "langgraph-checkpoint-postgres>=3.1,<3.2" "langchain-core>=1.0" "uuid-utils>=1.0" "argon2-cffi>=25.1"`. Verificar CA1. Actualizar el marcador `integracion` en `pyproject.toml` a "requiere PostgreSQL efímero (ADR-0011)". | — | — |
+| B1 | Dependencias: `uv add "alembic>=1.20,<1.21" "psycopg[binary]>=3.3,<3.4" "procrastinate>=3.10,<3.11" "langgraph-checkpoint-postgres>=3.1,<3.2" "langchain-core>=1.6,<2" "uuid-utils>=0.12,<1.0" "argon2-cffi>=25.1"` (desviación del borrador, que decía `langchain-core>=1.0` y `uuid-utils>=1.0`: uuid-utils 1.x rompe el checkpointer de LangGraph; `langsmith` subió a 0.14.1 por CVE). Verificar CA1. Actualizar el marcador `integracion` en `pyproject.toml` a "requiere PostgreSQL efímero (ADR-0011)". | — | — |
 | B2 | `Settings`: 7 campos y validadores de §5.2; `url_base_datos_migrador()`; `VARIABLES_CONFIG` y `valores_produccion` en pruebas; pruebas unitarias CA15. `backend/README.md`: tabla de variables ampliada y nota sobre `langsmith` inactivo. | B1 | B3, B5, B9, B10 |
 | B3 | `core/ids.py`; `modelos/base.py` (naming convention, mixin de marcas de tiempo) y los 7 módulos de modelos de §5.5. Pruebas unitarias: metadata contiene exactamente las 10 tablas, nombres de restricciones deterministas, CHECK presentes. | B1 | B2, B5, B9, B10 |
 | B4 | Alembic: `alembic.ini`, `env.py` (programático + CLI, `include_name`, `lock_timeout`), `privilegios.py`, copia de `3.10.0_schema.sql`, revisiones 0001–0004 con `downgrade` real, funciones y triggers de ADR-0009 y de `versiones_prompt`. `infrastructure/db/bootstrap/migraciones.py` (`revision_head`, `revision_actual`, `aplicar_migraciones`). Prueba unitaria: una sola head; versión instalada de procrastinate == última copia en `alembic/sql/procrastinate/`. Ejecutar localmente CA8 y CA9 con la fixture de B10. | B3, B10 | B6 |
@@ -567,7 +569,94 @@ Además, en Compose `DB_AUTO_CREATE: "true"` desaparece de `api` y `worker`. Qui
 
 ## 11. Resultado de QA
 
-_(lo completa qa)_
+**Fecha:** 2026-09-28 · **Agente:** qa · **Servidor:** PostgreSQL 16.13 efímero levantado por QA (`initdb --encoding=UTF8 --locale=C --auth=scram-sha-256` y `pg_ctl` vía `runuser -u postgres` en un `mkdtemp` de `/tmp`, solo `127.0.0.1:55432`, contraseña aleatoria, `PRUEBAS_PG_DSN`). Paridad con PostgreSQL 17 pendiente de CI (E0.5).
+
+### 11.1 Comandos ejecutados (desde `backend/`) y salida resumida
+
+| Comando | Resultado |
+|---|---|
+| `uv sync --locked --group dev` | `Resolved 106 packages`, `Audited 101 packages`, sin errores |
+| `uv run ruff check` / `ruff format --check` | `All checks passed!` / `148 files already formatted` |
+| `uv run pyrefly check` | `0 errors (20 suppressed)` |
+| `uv run pytest -q -m "not e2e and not eval" -rsx --cov=app --cov-report=term-missing` con `PRUEBAS_PG_DSN` | **1082 passed, 3 xfailed** en 134 s (0 skip). Cobertura total (en proceso) **98 %** |
+| `uv run pytest -q tests/unit tests/api --cov=app` (sin BD) | 937 passed, 1 xfailed; cobertura `unit`+`api` **90 %** (mínimo 85 %) |
+| `uv run pytest -q -m integracion -rsx` (equivale a `make test-int`) | **145 passed, 2 xfailed, 0 skip** en 115 s |
+| `uv run bandit -q -r app -ll` | sin hallazgos (código 0) |
+| `uv run pip-audit` | `No known vulnerabilities found` |
+| `docker compose ... config` | ver §11.4 |
+
+Primera ejecución de QA: 85 errores de la fixture porque el clúster creado con la receta literal del plan (sin `--encoding`) resultó `SQL_ASCII` (ver BUG-07). Con `--encoding=UTF8 --locale=C` todo pasa. El clúster se apagó con `pg_ctl stop -m fast` y se borraron el directorio y el archivo de contraseña: no queda ningún directorio ni proceso en ejecución (`pgrep` solo muestra un `[postgres] <defunct>` zombi ya terminado, pendiente de que el proceso padre lo recoja). La ejecución sin `PRUEBAS_PG_DSN` (clúster propio de la fixture) también pasa y no deja `/tmp/agente_pg_*`.
+
+### 11.2 Matriz criterio de aceptación → prueba → resultado
+
+| CA | Pruebas que lo verifican | Resultado |
+|---|---|---|
+| CA1 | `uv sync --locked`; `grep` sobre `uv.lock`: alembic 1.20.0, psycopg 3.3.6, procrastinate 3.10.0, langgraph-checkpoint-postgres 3.1.2, langchain-core 1.6.5, uuid-utils 0.17.1, argon2-cffi 25.1.0; sin `anthropic`, `openai`, `google-genai`, `typesafe*`, `langchain-anthropic` | Cumplido, con la desviación documentada `uuid-utils<1.0` (§5.1) |
+| CA2 | `ruff`, `ruff format`, `pyrefly`, pytest completo; cobertura unit+api 90 % | Cumplido. Falta ejecutar `vitest`/`build` de `make check` (frontend de otro agente) |
+| CA3 | `test_bootstrap.py::test_bootstrap_base_vacia_deja_todo_listo` (≤ 30 s, 10 tablas, 4+4, extensiones) | Cumplido |
+| CA4 | `test_bootstrap_segunda_ejecucion_no_inserta_nada_ni_muestra_contrasena`; `test_semillas_adversarial::test_sembrar_catalogo_dos_veces_seguidas_no_inserta_nada_la_segunda` (nueva) | Cumplido |
+| CA5 | `test_bootstrap_dos_procesos_concurrentes`; **nueva** `test_cuatro_bootstraps_a_la_vez_sobre_una_base_que_no_existe` (4 procesos con `DB_AUTO_CREATE`, carrera de `CREATE DATABASE`: un admin, una `bd.migrada`, una `bd.semillas_aplicadas`, una contraseña mostrada) | Cumplido |
+| CA6 | `test_bootstrap_lock_ocupado_termina_con_codigo_2`; `test_bootstrap_bd_caida_termina_con_codigo_2_sin_credenciales`; `test_bootstrap_credencial_rechazada_no_filtra_la_contrasena`; **nuevas** `..._contrasena_incorrecta_de_agente_app_falla_sin_filtrar`, `..._con_rol_sin_permiso_de_creacion_falla_con_codigo_2_sin_filtrar` (sqlstate 42501, paso `migraciones`), `..._url_malformada_termina_con_codigo_1_o_2_sin_eco` (6 casos), `..._url_del_migrador_malformada_no_se_repite_en_los_logs`, `..._con_revision_desconocida_falla_con_codigo_2_sin_traza` | Cumplido |
+| CA7 | `test_bootstrap_auto_create_crea_la_base`, `..._sin_auto_create_y_base_inexistente_falla`, `..._nombre_de_base_invalido_falla_sin_ejecutar_sql` (5 nombres), unitarias de `urls` | Cumplido |
+| CA8 | `test_migraciones.py` (escalera por revisión, `downgrade base`, `upgrade` posterior, vaciado de `procrastinate`); **nueva** `test_downgrade_base_con_datos_y_nuevo_bootstrap_reconstruye_todo` (dos ciclos `downgrade base`/`upgrade head` con datos y bootstrap posterior) y `..._sobre_base_a_medio_migrar_completa_y_audita_el_salto` | Cumplido |
+| CA9 | `test_migraciones_modelos_y_migraciones_coinciden` (`compare_metadata` vacío); `test_alembic_estructura.py` (una sola head) | Cumplido |
+| CA10 | `test_auditoria.py` (triggers, `ocurrido_en`, 50 inserciones concurrentes, primera fila manipulada, hash recalculado, rol app); **nuevas** en `test_auditoria_adversarial.py`: `ON CONFLICT DO UPDATE`, `DELETE` con CTE, `TRUNCATE ... CASCADE` y `RESTART IDENTITY` fallan incluso para el superusuario; cadena intacta tras `ROLLBACK`; detecta fila intermedia y primera fila borradas, `hash_previo` alterado, fila forjada y cualquier columna alterada (6 casos); en `test_roles_adversarial.py`: `agente_app` no puede desactivar triggers, `DROP`, `SET session_replication_role`, y no puede falsificar `hash`, `secuencia` ni fecha con `OVERRIDING SYSTEM VALUE` | Cumplido |
+| CA11 | `test_semillas.py` (roles, proveedores, taxonomía, agentes, v1 activa, preguntas, configuración, auditoría, no pisar cambios); **nuevas** forma de las preguntas Jev (tipos, criterios), prompts almacenados = archivos, IDs de modelo exactos, re-ejecución no revierte la versión activa del admin | Cumplido |
+| CA12 | `test_bootstrap_admin_con_contrasena_generada_se_muestra_una_sola_vez`, `..._con_contrasena_definida_no_imprime_nada`, `..._con_usuarios_existentes_no_crea_admin`, `..._produccion_sin_usuarios_ni_email_falla`; **nuevas** `test_contrasena_generada_no_se_muestra_si_la_transaccion_de_semillas_falla` (sin aviso, sin usuario, sin la cadena en stdout/stderr/excepción) y `test_contrasena_definida_no_aparece_en_logs_ni_en_la_base_salvo_su_hash` | Cumplido |
+| CA13 | `test_auditoria.py::test_versiones_prompt_*` (publicada inmutable, notas editables, borrador editable, FK de otro agente) | Cumplido |
+| CA14 | `test_roles.py` (modo separado, DML en tres esquemas, sin `CREATE`, superusuario, `CREATE` en `public` y en la base, mismo rol, `UPDATE` heredado, migrador superusuario, `roles.sql` idempotente, `00-roles.sh`); **nuevas** contraseñas con caracteres especiales en ambos roles, 12 sentencias DDL o de evasión denegadas a `agente_app`, `00-roles.sh` con contraseñas con espacios, comillas, `$`, `\` y salto de línea | Cumplido, salvo BUG-03 (`alembic_version`) que no formaba parte de la lista de comprobaciones |
+| CA15 | `tests/unit/core/test_config_bd.py` (produccion, esquema, longitudes, sin eco) | Cumplido |
+| CA16 | `tests/api/test_salud_migraciones.py`, `test_sonda_migraciones.py`, `test_readiness_migraciones.py` (head, revisión anterior, sin `alembic_version`, rol app); **nueva** `test_readiness_con_bd_caida_responde_503_sin_detalles` (sin usuario, clave, host, puerto ni texto del driver) | Cumplido |
+| CA17 | `tests/unit/test_compose.py` (15 pruebas) y verificación manual de §11.4 | Cumplido (sin `docker compose up`: no hay daemon) |
+| CA18 | `test_arquitectura.py` y `test_arquitectura_extra.py` | Cumplido |
+| CA19 | `pytest -m integracion`: 145 passed, 2 xfailed, 0 skip | Cumplido, con 2 `xfail` nuevos de defectos abiertos (BUG-03, BUG-06). El DoD pedía cero `xfail` nuevos: hace falta decidir si los arreglos entran en E0.2 |
+| CA20 | `bandit -q -r app -ll` sin hallazgos; `pip-audit` sin vulnerabilidades (`langsmith` 0.14.1 en el lock) | Cumplido |
+
+Ningún CA queda sin prueba real. CA17 y CA19 dependen de que CI ejecute `docker compose up` y la integración con PostgreSQL 17.
+
+### 11.3 Defectos
+
+| ID | Severidad | Título y reproducción | Esperado / obtenido | Ubicación | Estado |
+|---|---|---|---|---|---|
+| BUG-04 | Media | Contraseña con espacio rompe el bootstrap. Crear `agente_migrador` con contraseña `con espacio`, URL con `%20`, ejecutar `python -m app.bootstrap` | Esperado código 0. Obtenido código 2 en el paso `creacion` con `ProgrammingError` (SQLAlchemy `render_as_string` deja el espacio sin codificar y libpq lo rechaza; afectaba también a LangGraph y a la verificación de privilegios) | `backend/app/infrastructure/db/bootstrap/urls.py:57` (`conninfo`) | **Corregido por QA** con `.replace(" ", "%20")`; pruebas `test_urls_conninfo_round_trip_con_caracteres_especiales_y_espacios` (3 casos) y `test_bootstrap_roles_separados_con_contrasenas_de_caracteres_especiales` |
+| BUG-02 | Baja | La redacción de logs no cubre un DSN libpq `clave=valor`. `redactar_texto("host=h password=abc123 dbname=x")` devolvía el texto intacto; un error de psycopg/LangGraph que cite el conninfo filtraría la contraseña | Esperado `password=[REDACTADO]` | `backend/app/core/logging.py:59` | **Corregido por QA** (patrón nuevo en `PATRONES_VALOR`); `tests/unit/core/test_logging_bd.py` (8 URLs y DSN, 10 claves, traza) |
+| BUG-03 | Media | `agente_app` conserva `INSERT`, `UPDATE` y `DELETE` sobre `public.alembic_version`. Con roles separados y bootstrap hecho: `SELECT has_table_privilege('agente_app','alembic_version','UPDATE')` da `true` | Esperado `false` (la API podría falsear la revisión que lee la sonda de readiness o forzar migraciones en el siguiente bootstrap tras una inyección SQL). `verificar_privilegios` no lo comprueba | `backend/app/infrastructure/db/privilegios_migracion.py:32-47` (`GRANT ... ON ALL TABLES` y default privileges de `roles.sql`) | Abierto: `xfail(strict=True, reason="BUG-03")` en `test_roles_adversarial.py::test_app_no_puede_modificar_alembic_version`. Arreglo sugerido: revisión 0005 que reemplace la función con `REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.alembic_version FROM agente_app` y añadir `update_en_alembic_version` a `COMPROBACIONES_APP` (no es de una línea: toca una migración ya numerada) |
+| BUG-06 | Baja | `asegurar_base` se conecta siempre a la base `postgres`, aun con la base destino ya accesible y `DB_AUTO_CREATE=false`. Reproducción: `REVOKE CONNECT ON DATABASE postgres FROM PUBLIC` (servidor gestionado) y bootstrap con roles separados | Esperado código 0. Obtenido código 2, paso `creacion`, `OperationalError` | `backend/app/infrastructure/db/bootstrap/creacion.py:19-21` | Abierto: `xfail(strict=True, reason="BUG-06")` en `test_bootstrap_adversarial.py::test_bootstrap_con_base_existente_no_necesita_acceso_a_la_base_postgres`. Arreglo sugerido: `esperar_postgres` ya sabe si la base destino aceptó la conexión (solo `InvalidCatalogName` indica que falta); devolver ese dato y llamar a `asegurar_base` solo cuando falte |
+| BUG-07 | Baja | La fixture falla con un servidor `SQL_ASCII`: `ValueError: invalid literal for int() with base 10: "b'160013'"` (85 errores). Reproducción: `initdb` con `LANG` vacío (receta literal del plan/ADR-0011) y `PRUEBAS_PG_DSN` | Esperado mensaje claro o servidor UTF-8 | `backend/tests/integracion/pg_efimero.py:66` (`_version_mayor`) | Documentación corregida (ADR-0011 exige `--encoding=UTF8 --locale=C`); la fixture propia ya lo hace. Sugerido: en modo `PRUEBAS_PG_DSN` comprobar `SHOW server_encoding` y fallar con un texto explicativo |
+| BUG-05 | Baja | Compose interpola las contraseñas de los roles en `DATABASE_URL`/`DATABASE_URL_MIGRADOR` sin codificarlas: `%41` en la contraseña se decodifica a `A` (autenticación fallida sin explicación) y un espacio invalida la URL | Esperado documentación o codificación | `infra/docker-compose.yml` (líneas de `DATABASE_URL*`) | Documentado en `backend/README.md` (contraseñas URL-seguras). Sugerido: `make keys` que genere `token_urlsafe` |
+
+Observaciones de diseño sin prueba roja (para seguridad y para las épicas que las tocan):
+- **OBS-1** Si el proceso muere entre el `COMMIT` de las semillas y la escritura en `stderr`, el admin queda creado con una contraseña que nadie vio y el bootstrap ya no crea otro (hay usuarios). Recuperación manual. Con `ADMIN_INITIAL_PASSWORD` no ocurre.
+- **OBS-2** Las semillas reinsertan filas borradas por el admin (`test_semillas_no_pisan_cambios_del_admin` documenta que una categoría eliminada vuelve en cada bootstrap y que su pregunta Jev v1 queda desfasada). Relevante para E1.9 (taxonomía editable): habrá que marcar las semillas como ya aplicadas.
+- **OBS-3** La cadena de hashes no detecta el borrado de las últimas filas ni una recomputación completa por un superusuario; no hay ancla externa (límite conocido de ADR-0009).
+- **OBS-4** El trigger de auditoría toma `pg_advisory_xact_lock` hasta el final de la transacción: una transacción larga que audita pronto serializa a todos los demás escritores y puede provocar bloqueos cruzados con otras filas. Conviene auditar al final de cada caso de uso.
+- **OBS-5** La redacción por patrón no cubre una contraseña con `/` sin codificar dentro de una URL en texto libre (`postgresql://u:pa/ss@h/db`); una URL así no es válida y los logs del proyecto no la emiten.
+- **OBS-6** La contraseña inicial generada sale por `stderr` y, en Compose, llega a `docker logs` del servicio `migrador`. Recomendar `ADMIN_INITIAL_PASSWORD` desde un gestor de secretos en producción (ya en R4).
+- Defecto heredado de E0.1: `BUG-01` (preflight CORS rechazado responde `text/plain`), `xfail` previo, sin cambios.
+
+### 11.4 Revisión de infraestructura
+
+- `docker compose -f infra/docker-compose.yml config -q` sin variables falla con `required variable POSTGRES_PASSWORD is missing a value`; sin `AGENTE_MIGRADOR_PASSWORD` o sin `AGENTE_APP_PASSWORD` falla nombrando la variable (la de la app aparece en `services.api.environment.DATABASE_URL`). Con las tres definidas: código 0, `db.ports` ausente, `api.depends_on.migrador.condition = service_completed_successfully`, `api` con `DATABASE_URL_MIGRADOR: ""`, `DB_AUTO_CREATE: "false"` en `api` y `migrador`, sin contraseñas literales en el archivo (solo `${VAR:?}`).
+- Con `-f infra/docker-compose.dev.yml` añadido: `db` publica solo `127.0.0.1:5432`; `migrador` recibe `DB_AUTO_CREATE=true` y `ENV=development`.
+- `infra/Dockerfile.backend` copia `backend/alembic ./alembic` (sin `alembic.ini`); `.dockerignore` no excluye `*.md` (los prompts v1 viajan en la imagen) ni `alembic/`. `DIRECTORIO_ALEMBIC` resuelve a `/app/alembic` con la disposición de la imagen (las pruebas usan una copia de `app/` y `alembic/` con la misma disposición).
+- `infra/sql/00-roles.sh` (usa `\getenv` de psql, no `-v`) probado con `psql` local: asigna contraseñas, no las imprime, falla sin variables y admite contraseñas con espacios, comillas, `$`, `\` y salto de línea.
+
+### 11.5 Pruebas añadidas por QA
+
+- `backend/tests/integracion/test_bootstrap_adversarial.py` (18 pruebas, 1 `xfail`)
+- `backend/tests/integracion/test_auditoria_adversarial.py` (17)
+- `backend/tests/integracion/test_roles_adversarial.py` (16, 1 `xfail`)
+- `backend/tests/integracion/test_semillas_adversarial.py` (6)
+- `backend/tests/unit/core/test_logging_bd.py` (21)
+- `backend/tests/unit/infrastructure/test_urls_bootstrap.py` (+3 casos)
+
+Ninguna prueba existente se eliminó, saltó ni debilitó. Cambios de código de producción por QA: `urls.py` (BUG-04) y `logging.py` (BUG-02). Documentación: ADR-0010 y §3, §5.1 y B1 de este plan (desviación `uuid-utils>=0.12,<1.0`, `langchain-core>=1.6,<2`, `langsmith` 0.14.1), ADR-0011 (`--encoding=UTF8`), `backend/README.md` (contraseñas URL-seguras).
+
+### 11.6 Pendientes
+
+- Decidir si BUG-03 y BUG-06 se corrigen en E0.2 (DoD: sin `xfail` nuevos) o pasan a la épica siguiente.
+- CI (E0.5): `docker compose up` completo, integración con PostgreSQL 17 y el resto de `make check` (frontend).
+- Los zombis `[postgres] <defunct>` que muestre `pgrep` son procesos ya terminados del arnés y no corresponden a servidores activos.
 
 ## 12. Cierre y revisión de seguridad
 

@@ -114,3 +114,18 @@ def test_urls_errores_no_incluyen_credenciales() -> None:
         "OperationalError",
         "28P01",
     )
+
+
+@pytest.mark.parametrize("clave", ["con espacio", " inicial y final ", "p@ss:w%rd/#?&=+ ñ;'\"x"])
+def test_urls_conninfo_round_trip_con_caracteres_especiales_y_espacios(clave: str) -> None:
+    """BUG-04: un espacio en la contraseña rompía la cadena libpq con ProgrammingError."""
+    import psycopg
+    from sqlalchemy.engine import URL as URL_SA
+
+    url = URL_SA.create("postgresql+asyncpg", "agente_app", clave, "bd.ejemplo", 5432, "agente")
+    datos = psycopg.conninfo.conninfo_to_dict(conninfo(url, options="-csearch_path=langgraph"))
+    assert (datos["password"], datos["user"], datos["options"]) == (
+        clave,
+        "agente_app",
+        "-csearch_path=langgraph",
+    )

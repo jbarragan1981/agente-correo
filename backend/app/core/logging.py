@@ -59,6 +59,11 @@ PATRONES_VALOR: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
         ),
         rf"\1{REDACTADO}",
     ),
+    # DSN libpq en formato clave=valor (psycopg/asyncpg pueden citarlo en sus errores).
+    (
+        re.compile(r"(?i)\b(password|passwd)\s*=\s*(?:'(?:[^'\\]|\\.)*'|\S+)"),
+        rf"\1={REDACTADO}",
+    ),
     (
         re.compile(r"\b([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)"),
         r"\1***@\2",

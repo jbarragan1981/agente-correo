@@ -59,7 +59,7 @@ Documentación interactiva (solo fuera de producción): `http://localhost:8000/a
 | `ADMIN_INITIAL_EMAIL` | sí, si no hay usuarios | `admin@agente-correo.local` fuera de producción | `admin@ejemplo.com` | Se normaliza a minúsculas; ≤ 254 caracteres; sin espacios ni saltos de línea. |
 | `ADMIN_INITIAL_PASSWORD` | recomendable | — (se genera y se muestra una vez) | `<definir en el gestor de secretos>` | 12–128 caracteres; solo se usa en el primer bootstrap. |
 
-Variables de Compose (interpolación, no las lee `Settings`): `POSTGRES_PASSWORD`, `AGENTE_MIGRADOR_PASSWORD` y `AGENTE_APP_PASSWORD` son obligatorias en `infra/docker-compose.yml`; los objetivos de desarrollo del `Makefile` aportan valores locales evidentes si no están definidas. `PRUEBAS_PG_DSN` solo la usan las pruebas de integración.
+Variables de Compose (interpolación, no las lee `Settings`): `POSTGRES_PASSWORD`, `AGENTE_MIGRADOR_PASSWORD` y `AGENTE_APP_PASSWORD` son obligatorias en `infra/docker-compose.yml`; los objetivos de desarrollo del `Makefile` aportan valores locales evidentes si no están definidas. `PRUEBAS_PG_DSN` solo la usan las pruebas de integración. Compose interpola las contraseñas de los roles dentro de `DATABASE_URL` y `DATABASE_URL_MIGRADOR` sin codificarlas: usa contraseñas URL-seguras (letras, dígitos, `-`, `_`; por ejemplo `python -c "import secrets; print(secrets.token_urlsafe(24))"`). Un `%` seguido de dos dígitos hexadecimales se decodifica y cambia la contraseña sin aviso, y un espacio o un salto de línea invalidan la URL.
 
 `langgraph-checkpoint-postgres` arrastra `langchain-core` y `langsmith`; LangSmith queda inactivo (no se define `LANGSMITH_TRACING` ni claves de LangSmith).
 
