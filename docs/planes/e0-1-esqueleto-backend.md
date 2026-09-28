@@ -544,3 +544,25 @@ Pruebas de integración con contenedor (`tests/integracion/test_sonda_postgres.p
 - `DEBUG=true` en desarrollo sube el nivel raíz a DEBUG, lo que también activa los logs de `sqlalchemy` con parámetros; pasan por la redacción, pero conviene revisarlo al añadir modelos en E0.2.
 - La puerta de `proteger-secretos.sh` no bloqueó ninguna prueba; los JWT y claves se arman en tiempo de ejecución.
 - Sin `.env`, el proceso de producción termina con código 1; con el árbol real, `Settings` leería `RAIZ_REPO/.env` si existiera (las pruebas de proceso usan una copia de `app/` para evitarlo).
+
+## 10. Cierre y revisión de seguridad
+
+**Estado: completada.** Veredicto de seguridad: **APROBADO CON OBSERVACIONES** (sin hallazgos Críticos ni Altos). `make check` en verde: 456 pruebas, 1 xfail esperado (BUG-01).
+
+Correcciones aplicadas por seguridad: claves `clave`, `credencial`, `passwd` y `private_key` añadidas a la redacción de logs; loggers `sqlalchemy`, `httpx` y `httpcore` fijados en WARNING; `server_tokens off` en Nginx.
+
+### Pendientes antes del PR
+- Ejecutar semgrep (`uvx semgrep@1.178.0 --config p/owasp-top-ten --config p/python --error app`) donde haya acceso a semgrep.dev. En esta sesión el proxy de red lo bloqueó.
+- Ejecutar las 5 pruebas de integración y `compose up -d --build db api` en una máquina con Docker.
+- Añadir a mano a `.env.example` las variables listadas en `backend/README.md`.
+
+### Observaciones abiertas
+| ID | Sev. | Tema | Dónde se resuelve |
+|---|---|---|---|
+| M1 | Media | El servicio `db` publica `127.0.0.1:5432` con `postgres/postgres` por defecto. Mover `ports` a `docker-compose.dev.yml` y exigir `POSTGRES_PASSWORD` fuera de desarrollo. | E0.2 (arquitecto) |
+| B1 | Baja | Preflight CORS rechazado responde 400 `text/plain` (BUG-01). No es riesgo real. Envolver `CORSMiddleware` o documentar la excepción en `docs/04-api.md` §12. | E0.3 |
+| B2 | Baja | La redacción por subcadena ocultaría `tokens_entrada` y `tokens_salida`. Comparar por segmentos con lista cerrada de excepciones. | E1.1 |
+| B4 | Baja | Swagger y ReDoc cargan de jsDelivr sin SRI ni versión exacta (solo desarrollo). | E1.12 |
+| B5 | Baja | CSP de Nginx con `connect-src https: wss:`. Limitar al origen de la API. | E0.4 |
+| B6 | Baja | `DB_AUTO_CREATE=true` en Compose sin consumidor; prohibirlo en producción al implementarlo. | E0.2 |
+| B7 | Baja | `permissions.deny` solo cubre la herramienta Read; `python3 -c` y `uv run python` pueden leer `.env`. Decisión del usuario sobre endurecer `.claude/settings.json`. | Usuario |

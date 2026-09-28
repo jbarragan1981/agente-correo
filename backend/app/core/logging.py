@@ -40,6 +40,10 @@ CLAVES_SENSIBLES: Final = (
     "jwt",
     "database_url",
     "dsn",
+    "clave",
+    "credencial",
+    "passwd",
+    "private_key",
 )
 
 PATRONES_VALOR: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
@@ -63,7 +67,7 @@ PATRONES_VALOR: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
 
 LOGGERS_LIBRERIAS: Final = ("uvicorn", "uvicorn.error", "uvicorn.asgi", "sqlalchemy", "asyncio")
 LOGGERS_SILENCIADOS: Final = ("uvicorn.access",)
-LOGGERS_SOLO_AVISOS: Final = ("httpx", "httpcore")
+LOGGERS_SOLO_AVISOS: Final = ("httpx", "httpcore", "sqlalchemy")
 CAMPOS_DE_CONSOLA: Final = ("color_message",)
 
 
