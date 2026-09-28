@@ -174,3 +174,4 @@ Al iniciar `api` o `worker`:
 | 0004 | PostgreSQL única dependencia; auto-creación, migración y cola nativa. |
 | 0005 | Angular 22 zoneless + signals + Angular Material + Tailwind con tokens Viamatica. |
 | 0006 | Secretos con cifrado envelope (AES-256-GCM) y clave maestra fuera de la base. |
+| 0007 | Configuración validada con pydantic-settings: fallo cerrado en producción, sin eco de valores en errores, `extra="ignore"` y fábrica `crear_app`. |
