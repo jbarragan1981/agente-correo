@@ -495,7 +495,87 @@ Los agentes necesitan Node ≥ 22.22.3 en cada comando (§3). Si el orquestador 
 
 ## 9. Resultado de QA
 
-_Pendiente (Q10)._
+Ejecutado el 2026-09-28 por QA (Q1 a Q10) sobre el commit `feat(frontend)` de E0.4 más los cambios de esta sección (sin commit). Node 22.23.3 vía `npx -y -p node@22.23.3 --`; Playwright 1.56.1 con `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`, `CI=1` para no reutilizar servidores previos.
+
+### 9.1 Comandos ejecutados
+
+| Comando | Resultado |
+|---|---|
+| `npm ci` | 462 paquetes, 0 vulnerabilidades, 10 s. |
+| `npm run verificar` (inicial, antes de tocar nada) | rc 0: lint 0 errores y 0 avisos; estilos (76 archivos) y CSP correctos; tsc app y spec; Vitest 22 archivos, 279 pruebas; build de producción sin avisos de presupuesto (inicial 340,12 kB); i18n 80 mensajes al día. |
+| `npm run verificar` (final) | rc 0: estilos 81 archivos sin hallazgos; **Vitest 27 archivos, 401 pruebas pasadas + 2 `fail` esperadas (BUG-02, BUG-03)**; inicial 341,39 kB brutos / 95,51 kB transferidos; i18n al día; 38,8 s. |
+| `npm run e2e` inicial, 2 ejecuciones | 1.ª: 31 de 31. 2.ª: 30 de 31, falla `a11y.spec.ts` "teclado" (BUG-01, prueba con carrera; 6 de 25 fallos en `--repeat-each=25`). Corregida la sincronización. |
+| `npm run e2e` final, 2 ejecuciones | 1.ª: 51 de 52 (fallo de mi propia prueba de tema por leer `data-tema` sin espera; corregida). 2.ª: 52 de 52. Después, `--repeat-each=6` de `calidad` y `a11y`: 168 de 168. Con `API_DESTINO=http://127.0.0.1:8000` (incluye `@backend`): 54 de 54. |
+| `npm run api:verificar` | rc 0, sin diferencias en `openapi/` ni `src/app/core/api/generado/` (3 modelos, 1 servicio). |
+| `npm audit --audit-level=high` | 0 vulnerabilidades. |
+| `npm run bundles:verificar` (script nuevo) | `production`: sin marcadores; `development`: sin marcadores; `e2e`: `X-Api-Simulada`, `prueba-panel-local`, `@viamatica.test`. |
+| ESLint con un archivo temporal prohibido (borrado) | Detecta `console`, `eval`, `new Function`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `setTimeout(string)`, `any`, `style=` y atributos sin i18n. `[innerHTML]` lo detecta `verificar-estilos.mjs` (ver BUG-06). |
+| Nginx real (paquete `nginx` 1.24 de Ubuntu extraído en el scratchpad, no la imagen 1.27) con `infra/nginx.conf` y `infra/nginx-cabeceras-panel.conf` reales, `root` sobre `dist/panel/browser` y un backend de prueba local | `nginx -t` correcto (los únicos cambios: rutas absolutas, puerto 18080 y `api` reemplazado por `127.0.0.1:18000`). Ver 9.4. |
+
+### 9.2 Criterio de aceptación, prueba y resultado
+
+| CA | Prueba que lo cubre | Resultado |
+|---|---|---|
+| CA1 | `npm ci`; `node -e` sobre `package.json` (0 rangos; `engines` `^22.22.3 \|\| ^24.15.0`); `.npmrc` `engine-strict=true`, `save-exact=true`; lockfile versionado | Cumple. |
+| CA2 | `grep -c '"node_modules/zone.js"' package-lock.json` = 0; sin `provideZoneChangeDetection` ni `zone.js` en `src/`, `angular.json`, `package.json` | Cumple. |
+| CA3 | `npm run verificar` completo | Cumple (rc 0 dos veces). |
+| CA4 | `verificar-cobertura.mjs`: `core/` líneas 97,91 % y ramas 94,67 %; `shared/` líneas 100 % y ramas 93,75 %; global sentencias 97,69 %, ramas 93,21 %, funciones 96,93 %, líneas 98,2 % | Cumple (≥ 80 %). |
+| CA5 | Build de producción sin avisos; inicial 341,39 kB; el chunk perezoso mayor (`login-page`) 150,79 kB | Cumple. |
+| CA6 | `sesion.store.spec` y `login.page.spec` (espías sobre `Storage`, cookie y consola); `cadena-http.spec` (token solo en la cabecera); e2e `login.spec` y `calidad.spec` (claves `vm.*` únicas, sin token en URLs, 0 mensajes de consola, recarga vuelve a `/login`) | Cumple. |
+| CA7 | `auth.interceptor.spec`; `cadena-http.spec` (URLs absolutas, `//host`, `/apiario`, `api/...`, `/API/...`; login/refresh/logout con query; 401 persistente; reintento con 401 = 3 peticiones y un solo refresh; navegación única a `/login?volver=`) | Cumple. Excepción menor BUG-02 (barra final). |
+| CA8 | `correlacion.interceptor.spec`; `cadena-http.spec` (petición, refresh y reintento = 3 UUID v4 distintos; sin cabecera hacia terceros); e2e `calidad` (3 peticiones reales de salud con 3 ids distintos) | Cumple. |
+| CA9 | `error-app.spec` (tabla de §12, estado 0, HTML de proxy, `Content-Type` con parámetros, `Retry-After`, `errores[]`, `comprobaciones`); `cadena-http.spec` (500/502/503 con cuerpo ajeno y vacío, `null`, 429, red) | Cumple. |
+| CA10 | `guards.spec` (matriz desde `navegacion.ts`); **`matriz-roles-plan.spec` (matriz escrita a mano desde §4.8, 33 casos + roles vacíos, desconocido y combinados)**; `ruta-segura.spec` y `ruta-segura.vectores.spec` (más de 50 vectores); e2e `guards.spec` | Cumple. La matriz de `guards.spec` se generaba desde `navegacion.ts` y no detectaría un error de datos: cubierto por la nueva. |
+| CA11 | `login.page.spec`; `login.page.limites.spec` (doble envío síncrono = 1 llamada, correo/contraseña hostiles, 100 000 caracteres); e2e `login.spec` y `calidad` (HTML en el correo, emoji y 5 000 caracteres, doble Enter cuenta un intento) | Cumple. Excepción menor BUG-03 (sin límite de longitud de contraseña). |
+| CA12 | `vm-shell.spec`, `layout-principal.spec`, `preferencias-ui.spec`; e2e `shell.spec`; e2e `calidad` (360 px sin scroll horizontal, menú móvil con Escape y foco, tema persistido) | Cumple tras BUG-04. |
+| CA13 | `inicio.page.spec`; e2e `calidad` (500, 502 HTML, red caída con recuperación, 503 `no_listo` sin detalles); e2e `salud.backend.spec` con backend real | Cumple. `salud.backend.spec` acepta "listo" o "no listo" (no fuerza la falla); la falla queda cubierta con la respuesta 503 simulada. |
+| CA14 | `npm run api:verificar` | Cumple (rc 0). |
+| CA15 | **`scripts/verificar-bundles.mjs` (nuevo, `npm run bundles:verificar`)** sobre los tres builds | Cumple. No forma parte de `verificar` (compila tres veces, unos 40 s). |
+| CA16 | `verificar-csp.mjs`; `csp.spec`; comprobación propia de que la CSP es idéntica en ADR-0012, `nginx-cabeceras-panel.conf`, `verificar-csp.mjs` y `docs/06`; nginx real (9.4) | Cumple. |
+| CA17 | `ng lint` (regla `template/i18n` con `checkId`); `i18n:verificar`; `<html lang="es">`, `sourceLocale` `es`, `DEFAULT_CURRENCY_CODE` `USD` | Cumple. |
+| CA18 | `verificar-estilos.mjs`; `tokens-contraste.spec`; recálculo independiente en Python de 24 pares en claro y oscuro (coincide con la prueba: mínimo 4,89 en texto; `--vm-borde` sobre superficie 2,06 en claro no se usa en ningún componente) | Cumple. |
+| CA19 | `a11y.spec` (axe en `/login`, `/inicio`, `/sin-permiso`, claro y oscuro; teclado y foco) | Cumple, pero antes de BUG-05 la variante oscura de `/login` se ejecutaba en claro (falso positivo). Ahora es real y pasa. |
+| CA20 | `ng lint` con el archivo temporal prohibido; búsqueda en `src/`: solo `preferencias-ui.ts` toca `localStorage`, con claves `vm.*`; `npm audit` 0 | Cumple. |
+| CA21 | No ejecutable: Docker sin daemon | **Pendiente de ejecutar con Docker.** Evidencia parcial con Nginx real en 9.4; no la sustituye. |
+
+### 9.3 Defectos
+
+| ID | Severidad | Defecto | Reproducción y evidencia | Estado |
+|---|---|---|---|---|
+| BUG-04 | Media | La barra superior desborda en 360 px: scroll horizontal y el botón del menú de usuario queda fuera de pantalla. | Viewport 360 x 740, login con cualquier rol: `scrollWidth` 453 frente a `innerWidth` 360 (320 px igual); el botón termina en x = 435. Causa: el nombre de usuario, la marca y el aviso no se contraen. | **Corregido** en `frontend/src/app/shared/ui/shell/vm-shell.scss` (`.vm-marca` con elipsis, `@media (width < 600px)` oculta el nombre visible y reduce el chip). Pruebas: `e2e/calidad.spec.ts` (360 px en `/login`, `/inicio`, `/sin-permiso`). |
+| BUG-05 | Media | El tema (preferencia guardada o `prefers-color-scheme`) no se aplica fuera del shell: en `/login` `data-tema` queda sin definir. `TemaService` solo se instanciaba en `LayoutPrincipal`. Además la prueba axe del tema oscuro en `/login` se ejecutaba en claro. | Guardar `vm.tema=oscuro`, abrir `/login`: `document.documentElement.dataset.tema` es `undefined` (`calidad.spec`, 4 fallos antes de la corrección). | **Corregido** en `frontend/src/app/app.ts:9-16` (la raíz inyecta `TemaService`). Pruebas: `app.spec.ts` y `e2e/calidad.spec.ts` (4 casos de tema); axe oscuro de `/login` pasa. |
+| BUG-06 | Baja | `verificar-estilos.mjs` no detectaba `bind-innerHTML`, `[attr.innerHTML]`, `[srcdoc]` ni plantillas en línea dentro de `.ts` (CA20). | Probado con `revisarArchivo()` sobre cinco variantes: cuatro sin detección. | **Corregido** en `frontend/scripts/verificar-estilos.mjs` (expresión ampliada y revisión de `.ts` no spec). |
+| BUG-01 | Baja | Pulsar Escape durante la animación de apertura del menú de usuario deja el foco en `<body>` en vez de volver al botón (WCAG 2.4.3). La prueba del agente frontend lo golpeaba de forma intermitente. | `a11y.spec.ts` "teclado", `--repeat-each=25`: 6 fallos ("Received: inactive"). Con espera a que el foco esté en el elemento del menú: 25 de 25. | Prueba corregida con una espera de foco (sincronización, no debilitamiento). El comportamiento de Material en esa ventana de milisegundos queda como observación. |
+| BUG-02 | Baja | `/api/v1/auth/login/` (barra final) lleva `Authorization` porque `RUTAS_SIN_TOKEN` compara igualdad exacta. La aplicación nunca usa esa forma. | `cadena-http.spec.ts`: `it.fails('BUG-02: ...')`. | Abierto. Arreglo sugerido: normalizar la barra final en `ruta()` de `frontend/src/app/core/auth/auth.interceptor.ts:25`. Al corregirlo, quitar `.fails`. |
+| BUG-03 | Baja | La contraseña no tiene límite de longitud en el cliente: 100 000 caracteres viajan al servidor (el correo sí queda acotado por el validador). | `login.page.limites.spec.ts`: `it.fails('BUG-03: ...')`. | Abierto. Arreglo sugerido: `maxlength="1024"` en `login.page.html` y regla `maxLength` en el esquema. |
+
+Observaciones sin numerar:
+- `.claude/agents/frontend.md:16` y `.claude/agents/qa.md:18` siguen indicando `npm run test -- --run`, que en Angular 22 falla con `Unknown argument: run`. El skill `angular-viamatica` ya lo corrige (usa `npm run test:ci` o `npm run verificar`). Sin editar; corresponde al orquestador.
+- `prettier --check` no forma parte de `verificar` y hay dos archivos sin formato: `src/app/core/auth/auth.interceptor.spec.ts` y `src/app/shared/ui/README.md`.
+- `e2e/shell.spec.ts` (prueba de 800 px) encadena `.catch(() => undefined)` tras `iniciarSesion`, lo que oculta un fallo de login. Pasa hoy; conviene quitar el `catch` y esperar al botón de menú.
+- `rutaInternaSegura` decodifica hasta tres niveles; un vector con cinco niveles de `%25` se conserva, pero `navigateByUrl` solo decodifica una vez, por lo que no es explotable.
+- Los guards son de experiencia de usuario (R8): las pruebas de autorización real (401/403 por endpoint) corresponden a E0.3.
+
+### 9.4 CA21 pendiente y evidencia parcial con Nginx real
+
+Comandos exactos para una máquina con Docker:
+```
+docker build -f infra/Dockerfile.web -t agente-correo-web .
+docker run --rm agente-correo-web nginx -t
+docker compose -f infra/docker-compose.yml up -d web
+curl -sI http://127.0.0.1:4200/            # dos veces: nonce distinto en la CSP, Cache-Control: no-store
+curl -sI http://127.0.0.1:4200/main-<hash>.js   # Cache-Control: public, max-age=31536000, immutable
+curl -si http://127.0.0.1:4200/api/v1/salud     # respuesta del backend con sus cabeceras, sin la CSP del panel
+docker inspect --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}}' <contenedor>
+```
+Evidencia local (Nginx 1.24 de Ubuntu, configuración real del repositorio con rutas y puerto adaptados; no es la imagen `nginxinc/nginx-unprivileged:1.27`): `nginx -t` correcto; `/` responde 200 con CSP idéntica a ADR-0012 y `Cache-Control: no-store`; tres peticiones a `/agentes` dan tres nonces distintos y en cada respuesta el nonce de la cabecera coincide con `ngcspnonce` del HTML (el atributo sale en minúsculas del build); `__CSP_NONCE__` no queda sin sustituir; `main-*.js` con `public, max-age=31536000, immutable` y CSP; `/api/v1/salud` llega al backend de prueba sin CSP ni `X-Frame-Options` del panel; `/nada.js` 404; con `Accept-Encoding: gzip` `sub_filter` sigue funcionando; un cuerpo de 2 MB a `/api/` recibe 413. Sigue sin verificarse: el build de la imagen, `USER 101`, `read_only` y `tmpfs`, y `nginx -t` con la versión 1.27.
+
+### 9.5 Pruebas y archivos añadidos por QA
+
+- Vitest: `src/app/core/http/cadena-http.spec.ts`, `src/app/core/auth/matriz-roles-plan.spec.ts`, `src/app/core/auth/ruta-segura.vectores.spec.ts`, `src/app/core/auth/sesion.restaurar-limite.spec.ts`, `src/app/features/login/login.page.limites.spec.ts`, caso nuevo en `src/app/app.spec.ts`.
+- Playwright: `e2e/calidad.spec.ts` (21 pruebas), sincronización de foco en `e2e/a11y.spec.ts`.
+- Scripts: `scripts/verificar-bundles.mjs` y `npm run bundles:verificar` (CA15).
+- Correcciones de código: BUG-04 (`vm-shell.scss`), BUG-05 (`app.ts`), BUG-06 (`verificar-estilos.mjs`).
 
 ## 10. Cierre y revisión de seguridad
 

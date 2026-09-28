@@ -27,8 +27,12 @@
 }
 
 .vm-marca {
+  min-width: 0;
+  overflow: hidden;
   font-size: 18px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vm-espaciador {
@@ -52,10 +56,28 @@
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .vm-usuario-nombre {
   margin-inline-start: 4px;
+}
+
+/* BUG-04: en pantallas estrechas la barra superior desbordaba (scroll horizontal a 360 px). */
+@media (width < 600px) {
+  .vm-topbar {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+
+  .vm-usuario-nombre {
+    display: none;
+  }
+
+  .vm-aviso-simulado {
+    padding-inline: 6px;
+    font-size: 11px;
+  }
 }
 
 .vm-menu-cabecera {

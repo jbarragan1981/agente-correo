@@ -21,6 +21,7 @@
     "api:generar": "ng-openapi-gen -c ng-openapi-gen.json",
     "api:verificar": "npm run api:exportar && npm run api:generar && git diff --exit-code -- openapi src/app/core/api/generado",
     "e2e": "playwright test",
+    "bundles:verificar": "node scripts/verificar-bundles.mjs",
     "verificar": "node scripts/verificar-node.mjs && npm run lint && npm run typecheck && npm run test:ci && npm run build -- --configuration production && npm run i18n:verificar"
   },
   "dependencies": {

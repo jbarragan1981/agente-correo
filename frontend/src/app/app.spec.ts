@@ -11,4 +11,12 @@ describe('App', () => {
     const raiz = fixture.nativeElement as HTMLElement;
     expect(raiz.querySelector('router-outlet')).not.toBeNull();
   });
+
+  it('BUG-05: crear la raíz aplica data-tema al documento (también sin shell, p. ej. /login)', async () => {
+    delete document.documentElement.dataset['tema'];
+    TestBed.configureTestingModule({ imports: [App], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    expect(['claro', 'oscuro']).toContain(document.documentElement.dataset['tema']);
+  });
 });

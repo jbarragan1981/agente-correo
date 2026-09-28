@@ -60,6 +60,8 @@ test('teclado: Tab recorre el shell con foco visible y Escape cierra el menú de
   await page.getByRole('button', { name: 'Menú de usuario' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('menu')).toBeVisible();
+  // Sincroniza con el foco dentro del menú: Escape durante la animación de apertura pierde el foco (BUG-01).
+  await expect(page.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Menú de usuario' })).toBeFocused();

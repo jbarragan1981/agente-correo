@@ -2,7 +2,7 @@
 //  - ningún color hexadecimal fuera de src/styles/tokens.css y del generado src/styles/_paleta-m3.scss;
 //  - sin atributos style= ni enlaces [style] en plantillas;
 //  - `!important` solo con el comentario `// override-material:` en la misma línea o la anterior;
-//  - sin [innerHTML]/[outerHTML] en plantillas.
+//  - sin [innerHTML]/[outerHTML]/[srcdoc] (ni bind-…) en plantillas ni en plantillas en línea.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,8 @@ const extensiones = /\.(ts|html|scss|css)$/;
 
 const HEX = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])/g;
 const ESTILO_EN_PLANTILLA = /\s(style|\[style(\.[\w-]+)?\]|\[ngStyle\])\s*=/;
-const HTML_CRUDO = /\[(innerHTML|outerHTML)\]/i;
+// BUG-06: incluye la forma bind-innerHTML, [srcdoc] y las plantillas en línea de los .ts.
+const HTML_CRUDO = /(\[|bind-)(attr\.)?(innerHTML|outerHTML|srcdoc)\]?/i;
 const MARCA_OVERRIDE = '// override-material:';
 
 function recorrer(dir) {
@@ -34,6 +35,7 @@ export function revisarArchivo(rutaRel, contenido) {
   const hallazgos = [];
   const lineas = contenido.split('\n');
   const esPlantilla = rutaRel.endsWith('.html');
+  const esCodigo = rutaRel.endsWith('.ts') && !rutaRel.endsWith('.spec.ts');
   lineas.forEach((linea, i) => {
     const donde = `${rutaRel}:${i + 1}`;
     if (!permitidosHex.has(rutaRel) && !rutaRel.endsWith('.spec.ts')) {
@@ -43,8 +45,8 @@ export function revisarArchivo(rutaRel, contenido) {
     if (esPlantilla && ESTILO_EN_PLANTILLA.test(linea)) {
       hallazgos.push(`${donde}: estilo en línea en plantilla`);
     }
-    if (esPlantilla && HTML_CRUDO.test(linea)) {
-      hallazgos.push(`${donde}: enlace a innerHTML/outerHTML prohibido`);
+    if ((esPlantilla || esCodigo) && HTML_CRUDO.test(linea)) {
+      hallazgos.push(`${donde}: enlace a innerHTML/outerHTML/srcdoc prohibido`);
     }
     if (/!important/.test(linea)) {
       const anterior = lineas[i - 1] ?? '';
