@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 COMPOSE := docker compose -f infra/docker-compose.yml
+SEMGREP_VERSION := 1.178.0
 
 help: ## Lista los comandos
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
@@ -12,7 +13,7 @@ db: ## Levanta solo PostgreSQL
 	$(COMPOSE) up -d db
 
 dev: db ## PostgreSQL + API con recarga + worker + frontend
-	@echo "API: cd backend && uv run uvicorn app.main:app --reload | Worker: uv run python -m app.worker | Front: cd frontend && npm start"
+	@echo "API: cd backend && uv run uvicorn --factory app.main:crear_app --reload --no-server-header --no-access-log | Worker (E1.3): uv run python -m app.worker | Front (E0.4): cd frontend && npm start"
 
 check: check-backend check-frontend marcar-verificado ## Todo lo que corre CI (rápido, sin contenedores)
 
@@ -26,7 +27,7 @@ test-int: ## Pruebas de integración con contenedores
 	cd backend && uv run pytest -q -m integracion
 
 security: ## SAST y auditorías de dependencias
-	@if [ -f backend/pyproject.toml ]; then cd backend && uv run bandit -q -r app -ll && uv run pip-audit && uv run semgrep --config p/owasp-top-ten --config p/python --error app; fi
+	@if [ -f backend/pyproject.toml ]; then cd backend && uv run bandit -q -r app -ll && uv run pip-audit && uvx semgrep@$(SEMGREP_VERSION) --config p/owasp-top-ten --config p/python --error app; fi
 	@if [ -f frontend/package.json ]; then cd frontend && npm audit --audit-level=high; fi
 	@command -v gitleaks >/dev/null && gitleaks detect --no-git -s . --redact || echo "gitleaks no instalado (opcional)"
 

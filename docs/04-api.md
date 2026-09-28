@@ -2,7 +2,9 @@
 
 Base: `/api/v1`. JSON UTF-8. Autenticación: `Authorization: Bearer <access_jwt>` (15 min) + cookie `refresh` httpOnly/SameSite=Strict (7 días, rotativa). Todas las respuestas de error siguen RFC 9457 (`application/problem+json`). Paginación por cursor (`?cursor=&limit=`). Idempotencia en POST sensibles con `Idempotency-Key`.
 
-OpenAPI generado por FastAPI en `/api/v1/openapi.json` (deshabilitado en producción salvo rol admin).
+Correlación: toda respuesta (incluidos errores) lleva `X-Request-ID`. Si el cliente envía un `X-Request-ID` que es un UUID válido se reutiliza; cualquier otro valor se descarta y se genera un UUID v4 nuevo. El mismo id aparece en los logs (`correlation_id`) y en el campo `instance` de los errores.
+
+OpenAPI generado por FastAPI en `/api/v1/openapi.json`, con Swagger UI en `/api/v1/docs` y ReDoc en `/api/v1/redoc`. Con `ENV=production` las tres rutas responden 404; el acceso de admin a OpenAPI en producción se decide en E0.3, cuando exista autenticación.
 
 ## 1. Autenticación
 
@@ -94,7 +96,8 @@ Validaciones del prompt: tamaño máximo 32 KB, sin secretos (regex), placeholde
 | GET | `/metricas/costos?agrupar=proveedor|modelo|agente|cuenta` | admin, auditor | |
 | GET | `/metricas/categorias` | todos | Distribución y confianza media por categoría. |
 | GET | `/auditoria` | admin, auditor | Registro append-only con filtros. |
-| GET | `/salud` | público | liveness. `/salud/listo` readiness (BD, migraciones, proveedores). |
+| GET | `/salud` | público | Liveness; no consulta dependencias. 200 `{"estado":"vivo"}`. |
+| GET | `/salud/listo` | público | Readiness. 200 `{"estado":"listo","comprobaciones":{"base_datos":"ok"}}`; si alguna comprobación falla o excede `SALUD_BD_TIMEOUT_S`, 503 `no_listo` con `comprobaciones: {"base_datos":"falla"}` y sin detalles de la dependencia. E0.2 añade `migraciones` y E1.1 `proveedores`. |
 | GET | `/metrics` | red interna | Prometheus (protegido por red/basic auth). |
 
 ## 10. Webchat
@@ -140,9 +143,29 @@ class PlaygroundIn(BaseModel):
 | 400 | `validacion` | Body inválido (detalle por campo). |
 | 401 | `no_autenticado` | Token ausente/expirado. |
 | 403 | `sin_permiso` | Rol insuficiente. |
-| 404 | `no_encontrado` | |
+| 404 | `no_encontrado` | Ruta o recurso inexistente. |
+| 405 | `metodo_no_permitido` | La ruta existe pero no admite el método; incluye cabecera `Allow`. |
 | 409 | `conflicto` | Versión ya publicada, cuenta duplicada, idempotencia. |
 | 422 | `proveedor_rechazo` | El proveedor de IA rechazó la petición (incluye `stop_reason=refusal`). |
 | 429 | `limite_excedido` | Rate limit (`Retry-After`). |
 | 502 | `proveedor_no_disponible` | Falla upstream tras reintentos. |
-| 503 | `no_listo` | Migraciones o BD no disponibles. |
+| 500 | `error_interno` | Excepción no manejada. `detail` fijo ("Error interno. Cite el identificador al reportarlo."); nunca incluye mensaje ni traza. |
+| 503 | `no_listo` | Migraciones o BD no disponibles. Extensión `comprobaciones`. |
+| otros | `error_http` | Otros códigos HTTP del framework; `title` es la frase estándar del código. |
+
+Formato de todo error (`Content-Type: application/problem+json`):
+
+```json
+{
+  "type": "validacion",
+  "title": "Petición inválida",
+  "status": 400,
+  "detail": "La petición contiene campos inválidos.",
+  "instance": "urn:uuid:3f2b8c1e-6d4a-4f7e-9a51-2b0c8d7e6f10",
+  "errores": [{"campo": "body.email", "mensaje": "Field required"}]
+}
+```
+
+- `instance` es `urn:uuid:<X-Request-ID>` de la petición.
+- `validacion` usa 400 (no 422) y `errores[]` solo lleva `campo` y `mensaje`: nunca el valor recibido.
+- Extensiones por tipo: `errores` (400), `comprobaciones` (503).

@@ -6,13 +6,13 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-agente_correo}
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"      # solo en desarrollo; en producción eliminar este mapeo
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-agente_correo}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -20,11 +20,16 @@ services:
 
   api:
     build: { context: .., dockerfile: infra/Dockerfile.backend }
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
-    env_file: [../.env]
+    # Usa el CMD de la imagen (uvicorn --factory app.main:crear_app, sin cabecera Server ni access log).
+    # Sin .env la imagen corre con ENV=production y falla cerrada por falta de claves (ADR-0007).
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/agente_correo
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-agente_correo}
       DB_AUTO_CREATE: "true"
+      # IP/CIDR del reverse proxy de confianza para X-Forwarded-For; nunca "*".
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     depends_on: { db: { condition: service_healthy } }
     ports: ["127.0.0.1:8000:8000"]
     read_only: true
@@ -38,11 +43,15 @@ services:
       retries: 10
 
   worker:
+    # app.worker llega en E1.3; hasta entonces solo se levanta con --profile worker.
+    profiles: ["worker"]
     build: { context: .., dockerfile: infra/Dockerfile.backend }
     command: ["python", "-m", "app.worker"]
-    env_file: [../.env]
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/agente_correo
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-agente_correo}
       DB_AUTO_CREATE: "true"
     depends_on: { api: { condition: service_healthy } }
     read_only: true
@@ -52,6 +61,8 @@ services:
     deploy: { replicas: 1 }
 
   web:
+    # frontend/ se inicializa en E0.4; hasta entonces solo se levanta con --profile web.
+    profiles: ["web"]
     build: { context: .., dockerfile: infra/Dockerfile.web }
     depends_on: [api]
     ports: ["127.0.0.1:4200:8080"]
