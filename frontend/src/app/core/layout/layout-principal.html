@@ -1,0 +1,15 @@
+@if (sesion.usuario(); as usuario) {
+  <vm-shell
+    [navegacion]="navegacion()"
+    [usuario]="usuario"
+    [colapsado]="colapsado()"
+    [movil]="movil()"
+    [modoSimulado]="modoSimulado"
+    [temaOscuro]="temaOscuro()"
+    (alternarColapso)="alternarColapso()"
+    (alternarTema)="alternarTema()"
+    (cerrarSesion)="cerrarSesion()"
+  >
+    <router-outlet />
+  </vm-shell>
+}

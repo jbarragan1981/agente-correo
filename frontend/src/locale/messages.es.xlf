@@ -1,0 +1,658 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0" srcLang="es">
+  <file id="ngi18n" original="ng.template">
+    <unit id="titulo.login">
+      <notes>
+        <note category="location">src/app/app.routes.ts:21</note>
+      </notes>
+      <segment>
+        <source>Iniciar sesión</source>
+      </segment>
+    </unit>
+    <unit id="titulo.sin_permiso">
+      <notes>
+        <note category="location">src/app/app.routes.ts:38</note>
+      </notes>
+      <segment>
+        <source>Sin permiso</source>
+      </segment>
+    </unit>
+    <unit id="titulo.no_encontrado">
+      <notes>
+        <note category="location">src/app/app.routes.ts:47</note>
+      </notes>
+      <segment>
+        <source>Página no encontrada</source>
+      </segment>
+    </unit>
+    <unit id="rol.admin">
+      <notes>
+        <note category="location">src/app/core/auth/etiquetas-rol.ts:7</note>
+      </notes>
+      <segment>
+        <source>Administración</source>
+      </segment>
+    </unit>
+    <unit id="rol.operador">
+      <notes>
+        <note category="location">src/app/core/auth/etiquetas-rol.ts:9</note>
+      </notes>
+      <segment>
+        <source>Operación</source>
+      </segment>
+    </unit>
+    <unit id="rol.auditor">
+      <notes>
+        <note category="location">src/app/core/auth/etiquetas-rol.ts:11</note>
+      </notes>
+      <segment>
+        <source>Auditoría</source>
+      </segment>
+    </unit>
+    <unit id="error.validacion">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:67</note>
+      </notes>
+      <segment>
+        <source>Revisa los datos marcados.</source>
+      </segment>
+    </unit>
+    <unit id="error.no_autenticado">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:69</note>
+      </notes>
+      <segment>
+        <source>Tu sesión no es válida o ha caducado. Inicia sesión de nuevo.</source>
+      </segment>
+    </unit>
+    <unit id="error.sin_permiso">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:71</note>
+      </notes>
+      <segment>
+        <source>No tienes permiso para realizar esta acción.</source>
+      </segment>
+    </unit>
+    <unit id="error.no_encontrado">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:73</note>
+      </notes>
+      <segment>
+        <source>El recurso solicitado no existe.</source>
+      </segment>
+    </unit>
+    <unit id="error.metodo_no_permitido">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:75</note>
+      </notes>
+      <segment>
+        <source>La operación no está permitida.</source>
+      </segment>
+    </unit>
+    <unit id="error.conflicto">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:77</note>
+      </notes>
+      <segment>
+        <source>La operación entra en conflicto con el estado actual. Recarga e inténtalo de nuevo.</source>
+      </segment>
+    </unit>
+    <unit id="error.proveedor_rechazo">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:79</note>
+      </notes>
+      <segment>
+        <source>El proveedor de IA rechazó la solicitud.</source>
+      </segment>
+    </unit>
+    <unit id="error.limite_excedido">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:82</note>
+      </notes>
+      <segment>
+        <source>Demasiados intentos. Espera un momento e inténtalo de nuevo.</source>
+      </segment>
+    </unit>
+    <unit id="error.limite_excedido.espera">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:83</note>
+      </notes>
+      <segment>
+        <source>Demasiados intentos. Inténtalo de nuevo en <ph id="0" equiv="segundos" disp="reintentarEnS"/> s.</source>
+      </segment>
+    </unit>
+    <unit id="error.proveedor_no_disponible">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:85</note>
+      </notes>
+      <segment>
+        <source>El proveedor no está disponible en este momento.</source>
+      </segment>
+    </unit>
+    <unit id="error.error_interno">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:87</note>
+      </notes>
+      <segment>
+        <source>Se produjo un error interno.</source>
+      </segment>
+    </unit>
+    <unit id="error.no_listo">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:89</note>
+      </notes>
+      <segment>
+        <source>El sistema todavía no está listo.</source>
+      </segment>
+    </unit>
+    <unit id="error.error_http">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:91</note>
+      </notes>
+      <segment>
+        <source>La solicitud no se pudo completar.</source>
+      </segment>
+    </unit>
+    <unit id="error.red">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:93</note>
+      </notes>
+      <segment>
+        <source>No se pudo contactar con el servidor.</source>
+      </segment>
+    </unit>
+    <unit id="error.desconocido">
+      <notes>
+        <note category="location">src/app/core/errores/error-app.ts:95</note>
+      </notes>
+      <segment>
+        <source>Se produjo un error inesperado.</source>
+      </segment>
+    </unit>
+    <unit id="notificador.cerrar">
+      <notes>
+        <note category="location">src/app/core/errores/notificador-errores.ts:17</note>
+      </notes>
+      <segment>
+        <source>Cerrar</source>
+      </segment>
+    </unit>
+    <unit id="notificador.con_referencia">
+      <notes>
+        <note category="location">src/app/core/errores/notificador-errores.ts:26</note>
+      </notes>
+      <segment>
+        <source><ph id="0" equiv="mensaje" disp="error.mensaje"/> Código de referencia: <ph id="1" equiv="referencia" disp="error.idCorrelacion"/></source>
+      </segment>
+    </unit>
+    <unit id="nav.inicio">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:22</note>
+      </notes>
+      <segment>
+        <source>Inicio</source>
+      </segment>
+    </unit>
+    <unit id="nav.dashboard">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:29</note>
+      </notes>
+      <segment>
+        <source>Dashboard</source>
+      </segment>
+    </unit>
+    <unit id="nav.bandeja">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:36</note>
+      </notes>
+      <segment>
+        <source>Bandeja</source>
+      </segment>
+    </unit>
+    <unit id="nav.aprobaciones">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:43</note>
+      </notes>
+      <segment>
+        <source>Aprobaciones</source>
+      </segment>
+    </unit>
+    <unit id="nav.agentes">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:50</note>
+      </notes>
+      <segment>
+        <source>Agentes</source>
+      </segment>
+    </unit>
+    <unit id="nav.cuentas">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:57</note>
+      </notes>
+      <segment>
+        <source>Cuentas de correo</source>
+      </segment>
+    </unit>
+    <unit id="nav.taxonomia">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:64</note>
+      </notes>
+      <segment>
+        <source>Taxonomía</source>
+      </segment>
+    </unit>
+    <unit id="nav.webchat">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:71</note>
+      </notes>
+      <segment>
+        <source>Webchat</source>
+      </segment>
+    </unit>
+    <unit id="nav.proveedores">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:78</note>
+      </notes>
+      <segment>
+        <source>Proveedores de IA</source>
+      </segment>
+    </unit>
+    <unit id="nav.usuarios">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:85</note>
+      </notes>
+      <segment>
+        <source>Usuarios</source>
+      </segment>
+    </unit>
+    <unit id="nav.auditoria">
+      <notes>
+        <note category="location">src/app/core/layout/navegacion.ts:92</note>
+      </notes>
+      <segment>
+        <source>Auditoría</source>
+      </segment>
+    </unit>
+    <unit id="app.nombre">
+      <notes>
+        <note category="location">src/app/core/layout/titulo.strategy.ts:5</note>
+      </notes>
+      <segment>
+        <source>Agente Correo</source>
+      </segment>
+    </unit>
+    <unit id="inicio.saludo">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:2,5</note>
+      </notes>
+      <segment>
+        <source> Hola, <ph id="0" equiv="INTERPOLATION" disp="{{ sesion.nombreVisible() }}"/>
+</source>
+      </segment>
+    </unit>
+    <unit id="inicio.estado_titulo">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:9,11</note>
+      </notes>
+      <segment>
+        <source> Estado del sistema </source>
+      </segment>
+    </unit>
+    <unit id="inicio.comprobando">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:18,20</note>
+      </notes>
+      <segment>
+        <source>Comprobando el estado</source>
+      </segment>
+    </unit>
+    <unit id="inicio.comprobando_texto">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:20,21</note>
+      </notes>
+      <segment>
+        <source>Comprobando el estado del sistema…</source>
+      </segment>
+    </unit>
+    <unit id="inicio.listo">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:24,26</note>
+      </notes>
+      <segment>
+        <source>El sistema está listo.</source>
+      </segment>
+    </unit>
+    <unit id="salud.ok">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:30,31</note>
+        <note category="location">src/app/features/inicio/inicio.page.html:44,45</note>
+      </notes>
+      <segment>
+        <source>Correcto</source>
+      </segment>
+    </unit>
+    <unit id="inicio.no_listo">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:37,39</note>
+      </notes>
+      <segment>
+        <source>El sistema no está listo.</source>
+      </segment>
+    </unit>
+    <unit id="salud.falla">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:46,48</note>
+      </notes>
+      <segment>
+        <source>Falla</source>
+      </segment>
+    </unit>
+    <unit id="inicio.reintentar">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:52,54</note>
+        <note category="location">src/app/features/inicio/inicio.page.html:60,63</note>
+      </notes>
+      <segment>
+        <source> Reintentar </source>
+      </segment>
+    </unit>
+    <unit id="inicio.accesos">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.html:68,69</note>
+      </notes>
+      <segment>
+        <source>Accesos</source>
+      </segment>
+    </unit>
+    <unit id="salud.base_datos">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.ts:26</note>
+      </notes>
+      <segment>
+        <source>Base de datos</source>
+      </segment>
+    </unit>
+    <unit id="salud.migraciones">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.ts:28</note>
+      </notes>
+      <segment>
+        <source>Migraciones</source>
+      </segment>
+    </unit>
+    <unit id="salud.proveedores">
+      <notes>
+        <note category="location">src/app/features/inicio/inicio.page.ts:30</note>
+      </notes>
+      <segment>
+        <source>Proveedores de IA</source>
+      </segment>
+    </unit>
+    <unit id="login.enviando">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:7,10</note>
+      </notes>
+      <segment>
+        <source>Iniciando sesión</source>
+      </segment>
+    </unit>
+    <unit id="login.titulo">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:12,13</note>
+      </notes>
+      <segment>
+        <source>Iniciar sesión</source>
+      </segment>
+    </unit>
+    <unit id="login.subtitulo">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:15,17</note>
+      </notes>
+      <segment>
+        <source>Agente Correo · Panel de operación</source>
+      </segment>
+    </unit>
+    <unit id="login.email">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:28,29</note>
+      </notes>
+      <segment>
+        <source>Correo electrónico</source>
+      </segment>
+    </unit>
+    <unit id="login.password">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:47,48</note>
+      </notes>
+      <segment>
+        <source>Contraseña</source>
+      </segment>
+    </unit>
+    <unit id="login.mostrar_password">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:63,64</note>
+      </notes>
+      <segment>
+        <source>Mostrar contraseña</source>
+      </segment>
+    </unit>
+    <unit id="login.entrar">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:82,83</note>
+      </notes>
+      <segment>
+        <source> Entrar </source>
+      </segment>
+    </unit>
+    <unit id="login.nota_cookie">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:86,88</note>
+      </notes>
+      <segment>
+        <source> La sesión se mantiene mediante una cookie segura; no se guarda tu contraseña. </source>
+      </segment>
+    </unit>
+    <unit id="login.nota_simulado">
+      <notes>
+        <note category="location">src/app/features/login/login.page.html:90,93</note>
+      </notes>
+      <segment>
+        <source> Modo simulado: la autenticación usa usuarios de ejemplo; consulta frontend/README.md. </source>
+      </segment>
+    </unit>
+    <unit id="login.error_credenciales">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:32</note>
+      </notes>
+      <segment>
+        <source>Correo o contraseña incorrectos.</source>
+      </segment>
+    </unit>
+    <unit id="login.error_limite">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:35</note>
+      </notes>
+      <segment>
+        <source>Demasiados intentos. Espera un momento e inténtalo de nuevo.</source>
+      </segment>
+    </unit>
+    <unit id="login.error_limite_espera">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:36</note>
+      </notes>
+      <segment>
+        <source>Demasiados intentos. Inténtalo de nuevo en <ph id="0" equiv="segundos" disp="error.reintentarEnS"/> s.</source>
+      </segment>
+    </unit>
+    <unit id="login.error_red">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:38</note>
+      </notes>
+      <segment>
+        <source>No se pudo contactar con el servidor.</source>
+      </segment>
+    </unit>
+    <unit id="login.email_requerido">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:70</note>
+      </notes>
+      <segment>
+        <source>Escribe tu correo electrónico.</source>
+      </segment>
+    </unit>
+    <unit id="login.email_invalido">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:71</note>
+      </notes>
+      <segment>
+        <source>Escribe un correo electrónico válido.</source>
+      </segment>
+    </unit>
+    <unit id="login.password_requerida">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:72</note>
+      </notes>
+      <segment>
+        <source>Escribe tu contraseña.</source>
+      </segment>
+    </unit>
+    <unit id="login.password_larga">
+      <notes>
+        <note category="location">src/app/features/login/login.page.ts:76</note>
+      </notes>
+      <segment>
+        <source>La contraseña no puede superar <ph id="0" equiv="maximo" disp="MAX_LONGITUD_PASSWORD"/> caracteres.</source>
+      </segment>
+    </unit>
+    <unit id="en_construccion.texto">
+      <notes>
+        <note category="location">src/app/features/sistema/en-construccion.page.html:6,8</note>
+      </notes>
+      <segment>
+        <source>Esta sección está en construcción. Llegará con la épica <ph id="0" equiv="INTERPOLATION" disp="{{ item()?.epica }}"/>.</source>
+      </segment>
+    </unit>
+    <unit id="no_encontrado.titulo">
+      <notes>
+        <note category="location">src/app/features/sistema/no-encontrado.page.html:3,5</note>
+      </notes>
+      <segment>
+        <source> Página no encontrada </source>
+      </segment>
+    </unit>
+    <unit id="no_encontrado.texto">
+      <notes>
+        <note category="location">src/app/features/sistema/no-encontrado.page.html:6,8</note>
+      </notes>
+      <segment>
+        <source> La dirección que buscas no existe o ha cambiado. </source>
+      </segment>
+    </unit>
+    <unit id="sistema.ir_inicio">
+      <notes>
+        <note category="location">src/app/features/sistema/no-encontrado.page.html:8,10</note>
+        <note category="location">src/app/features/sistema/sin-permiso.page.html:7,9</note>
+      </notes>
+      <segment>
+        <source>Ir al inicio</source>
+      </segment>
+    </unit>
+    <unit id="sin_permiso.titulo">
+      <notes>
+        <note category="location">src/app/features/sistema/sin-permiso.page.html:2,3</note>
+      </notes>
+      <segment>
+        <source>Sin permiso</source>
+      </segment>
+    </unit>
+    <unit id="sin_permiso.texto">
+      <notes>
+        <note category="location">src/app/features/sistema/sin-permiso.page.html:4,7</note>
+      </notes>
+      <segment>
+        <source> Tu rol no tiene acceso a esta sección. Si crees que es un error, contacta con una persona administradora. </source>
+      </segment>
+    </unit>
+    <unit id="shell.saltar">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:2,5</note>
+      </notes>
+      <segment>
+        <source> Saltar al contenido
+</source>
+      </segment>
+    </unit>
+    <unit id="shell.abrir_menu">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:14,16</note>
+      </notes>
+      <segment>
+        <source>Abrir menú de navegación</source>
+      </segment>
+    </unit>
+    <unit id="shell.marca">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:20,21</note>
+      </notes>
+      <segment>
+        <source>Agente Correo</source>
+      </segment>
+    </unit>
+    <unit id="shell.modo_simulado">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:24,28</note>
+      </notes>
+      <segment>
+        <source>Modo simulado</source>
+      </segment>
+    </unit>
+    <unit id="shell.tema_oscuro">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:33,34</note>
+      </notes>
+      <segment>
+        <source>Tema oscuro</source>
+      </segment>
+    </unit>
+    <unit id="shell.menu_usuario">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:45,47</note>
+      </notes>
+      <segment>
+        <source>Menú de usuario</source>
+      </segment>
+    </unit>
+    <unit id="shell.cerrar_sesion">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:58,60</note>
+      </notes>
+      <segment>
+        <source>Cerrar sesión</source>
+      </segment>
+    </unit>
+    <unit id="shell.navegacion">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.html:72,73</note>
+      </notes>
+      <segment>
+        <source>Navegación principal</source>
+      </segment>
+    </unit>
+    <unit id="shell.expandir_menu">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.ts:66</note>
+      </notes>
+      <segment>
+        <source>Expandir menú lateral</source>
+      </segment>
+    </unit>
+    <unit id="shell.contraer_menu">
+      <notes>
+        <note category="location">src/app/shared/ui/shell/vm-shell.ts:67</note>
+      </notes>
+      <segment>
+        <source>Contraer menú lateral</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>

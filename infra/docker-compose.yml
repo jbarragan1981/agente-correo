@@ -1,57 +1,106 @@
 name: agente-correo
 
+# Postura de producción (ADR-0008): la BD no publica puertos, las contraseñas son obligatorias
+# y la API se conecta como agente_app (sin DDL). El overlay docker-compose.dev.yml añade el
+# puerto local y DB_AUTO_CREATE; `make db`/`make dev` lo incluyen con contraseñas locales.
+
+x-endurecido: &endurecido
+  read_only: true
+  tmpfs: ["/tmp"]
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+
 services:
   db:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-agente_correo}
+      # Solo los usa 00-roles.sh al inicializar un volumen vacío (o `make db-roles`).
+      AGENTE_MIGRADOR_PASSWORD: ${AGENTE_MIGRADOR_PASSWORD:?Define AGENTE_MIGRADOR_PASSWORD}
+      AGENTE_APP_PASSWORD: ${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"      # solo en desarrollo; en producción eliminar este mapeo
+      - ./sql/00-roles.sh:/docker-entrypoint-initdb.d/00-roles.sh:ro
+      - ./sql/roles.sql:/sql/roles.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-agente_correo}"]
       interval: 5s
       timeout: 3s
       retries: 20
     security_opt: ["no-new-privileges:true"]
 
+  migrador:
+    # Bootstrap one-shot: espera, migra, prepara LangGraph, verifica privilegios y siembra.
+    build: { context: .., dockerfile: infra/Dockerfile.backend }
+    command: ["python", "-m", "app.bootstrap"]
+    restart: "no"
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DB_ROLES_SEPARADOS: "true"
+      DB_AUTO_CREATE: "false"
+      DATABASE_URL_MIGRADOR: postgresql+asyncpg://agente_migrador:${AGENTE_MIGRADOR_PASSWORD:?Define AGENTE_MIGRADOR_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
+      # Solo para verificar los privilegios del rol de la app; el migrador no la usa para DDL.
+      DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
+      # ADMIN_INITIAL_EMAIL y ADMIN_INITIAL_PASSWORD (opcionales) llegan desde ../.env.
+      # El .env compartido no debe entregar la contraseña del superusuario a ningún servicio de la app.
+      POSTGRES_PASSWORD: ""
+    depends_on: { db: { condition: service_healthy } }
+    healthcheck: { disable: true }
+    <<: *endurecido
+
   api:
     build: { context: .., dockerfile: infra/Dockerfile.backend }
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
-    env_file: [../.env]
+    # Usa el CMD de la imagen (uvicorn --factory app.main:crear_app, sin cabecera Server ni access log).
+    # Sin .env la imagen corre con ENV=production y falla cerrada por falta de claves (ADR-0007).
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/agente_correo
-      DB_AUTO_CREATE: "true"
-    depends_on: { db: { condition: service_healthy } }
+      DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
+      DATABASE_URL_MIGRADOR: ""
+      # Anula lo que el .env compartido aporte: la app no recibe credenciales del superusuario ni del migrador.
+      POSTGRES_PASSWORD: ""
+      AGENTE_MIGRADOR_PASSWORD: ""
+      DB_ROLES_SEPARADOS: "true"
+      DB_AUTO_CREATE: "false"
+      # IP/CIDR del reverse proxy de confianza para X-Forwarded-For; nunca "*".
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+    depends_on: { migrador: { condition: service_completed_successfully } }
     ports: ["127.0.0.1:8000:8000"]
-    read_only: true
-    tmpfs: ["/tmp"]
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/salud/listo', timeout=3).status==200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 10
+    <<: *endurecido
 
   worker:
+    # app.worker llega en E1.3; hasta entonces solo se levanta con --profile worker.
+    profiles: ["worker"]
     build: { context: .., dockerfile: infra/Dockerfile.backend }
     command: ["python", "-m", "app.worker"]
-    env_file: [../.env]
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/agente_correo
-      DB_AUTO_CREATE: "true"
-    depends_on: { api: { condition: service_healthy } }
-    read_only: true
-    tmpfs: ["/tmp"]
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
+      DATABASE_URL: postgresql+asyncpg://agente_app:${AGENTE_APP_PASSWORD:?Define AGENTE_APP_PASSWORD}@db:5432/${POSTGRES_DB:-agente_correo}
+      DATABASE_URL_MIGRADOR: ""
+      # Anula lo que el .env compartido aporte: la app no recibe credenciales del superusuario ni del migrador.
+      POSTGRES_PASSWORD: ""
+      AGENTE_MIGRADOR_PASSWORD: ""
+      DB_ROLES_SEPARADOS: "true"
+      DB_AUTO_CREATE: "false"
+    depends_on: { migrador: { condition: service_completed_successfully } }
     deploy: { replicas: 1 }
+    <<: *endurecido
 
   web:
+    # frontend/ se inicializa en E0.4; hasta entonces solo se levanta con --profile web.
+    profiles: ["web"]
     build: { context: .., dockerfile: infra/Dockerfile.web }
     depends_on: [api]
     ports: ["127.0.0.1:4200:8080"]

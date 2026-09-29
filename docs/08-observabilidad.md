@@ -11,6 +11,14 @@
 
 Correlación: `trace_id` de OTel se guarda en `ejecuciones_agente.traza_otel_id` y se muestra en el panel para saltar a Grafana Tempo/Langfuse.
 
+### 1.1 Formato de logs (desde E0.1)
+
+- Una línea JSON por evento en stdout, tanto de la app como de `uvicorn`, `uvicorn.error`, `sqlalchemy` y `asyncio` (misma cadena de procesadores). Campos base: `timestamp` (ISO 8601 UTC), `nivel`, `evento`, `logger` y `correlation_id` cuando hay una petición en curso (igual a la cabecera `X-Request-ID`).
+- Log de acceso propio `evento="http.peticion"` con `metodo`, `ruta` (**sin query string**), `estado` y `duracion_ms`. El access log de Uvicorn está deshabilitado (`--no-access-log`) y `httpx`/`httpcore` solo registran avisos, para que ninguna URL con parámetros llegue a los logs.
+- Excepciones no manejadas: `evento="http.error_inesperado"` con `exception` (traza redactada; si excede 8 000 caracteres se conserva el final, donde están el tipo y el mensaje).
+- Redacción (`app/core/logging.py`, procesador `redactar`, aplicado tras formatear excepciones): claves que contienen `password`, `contrasena`, `contraseña`, `secreto`, `secret`, `token`, `authorization`, `api_key`, `apikey`, `cookie`, `master_key`, `jwt`, `database_url` o `dsn` (sin distinguir mayúsculas ni `-`/`_`) → `[REDACTADO]`; en cualquier texto se reemplazan JWT, `Bearer …`, `sk-ant-…`, `sk-…`, `ts_…`, contraseñas en URL (`://usuario:***@`) y parámetros de query sensibles; emails → `j***@dominio`; `SecretStr` → `**********`; textos > 2 000 caracteres se truncan.
+- Hasta E1.10 (OpenTelemetry y `/metrics`) el log de acceso (`estado`, `duracion_ms`) es la señal de latencia y errores HTTP disponible.
+
 ## 2. Métricas (nombres OTel)
 
 **Negocio**

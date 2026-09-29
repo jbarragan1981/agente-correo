@@ -53,11 +53,25 @@ frontend/src/app/
 
 Modo oscuro: mismos tokens con fondos `--vm-oscuro`/`--vm-oscuro-footer`, texto `#E6F1F8`, primario `--vm-cyan`. Se activa con `prefers-color-scheme` y toggle persistido.
 
+**Variantes de texto con contraste AA** (E0.4). Varios colores de marca no alcanzan 4,5:1 como texto: blanco sobre `#3AAFDE` = 2,51; `#2E86C1` sobre blanco = 3,97; `#D64545` sobre blanco = 4,38; blanco sobre `#1E9E6A` = 3,41. Por eso existen estos tokens y los componentes los usan para texto:
+
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `--vm-texto-sobre-marca` | `#0D1B2A` (6,93 sobre `#3AAFDE`) | `#0D1B2A` | Texto de botones primarios rellenos. |
+| `--vm-enlace` | `#1F6FA3` | `#5BC0EB` | Enlaces y texto informativo pequeño. |
+| `--vm-error-texto` | `#B83232` | `#FF8A8A` | Mensajes de error bajo campos. |
+| `--vm-exito-texto` | `#157A52` | `#5FD3A2` | Texto de estado OK. |
+| `--vm-alerta-texto` | `#8A6300` | `#F2C94C` | Texto de advertencia. |
+| `--vm-foco` | `#1B3A5C` | `#00D4FF` | Anillo de foco (2 px + 2 px de separación). `--vm-foco-inverso` (`#00D4FF`) sobre sidebar y topbar. |
+
+Reglas: `#3AAFDE` solo como relleno con texto `--vm-texto-sobre-marca`, bordes e indicadores; `#2E86C1` solo en texto ≥ 24 px o iconos; `#D64545` y `#1E9E6A` como fondo de chips con texto oscuro o como borde/icono. Además hay tokens semánticos (`--vm-fondo-pagina`, `--vm-superficie`, `--vm-texto`, `--vm-texto-secundario`, `--vm-sidebar-*`, `--vm-topbar-*`, `--vm-aviso-*`) que cambian con el tema. La prueba `core/layout/tokens-contraste.spec.ts` calcula todos los pares en claro y oscuro desde `tokens.css` y exige ≥ 4,5 (texto) / ≥ 3 (UI). El primario de Material se mantiene en el tono M3 generado (`_paleta-m3.scss`, que cumple AA como texto); la marca se aplica a botones rellenos con `mat.button-overrides`.
+
 Paleta categórica para gráficas (orden fijo): `#3AAFDE, #1B3A5C, #00D4FF, #2E86C1, #5BC0EB, #4A5568, #E0A100, #1E9E6A`. Secuencial: `#F0F6FA → #5BC0EB → #2E86C1 → #1B3A5C`. Divergente (riesgo): `#1E9E6A → #F0F6FA → #D64545`.
 
 ### 3.2 Tipografía
 
-- Familia: **Inter** (Google Fonts, `font-display: swap`), fallback `system-ui`.
+- Familia: **Inter variable** autoalojada (`@fontsource-variable/inter`, `font-display: swap`), fallback `system-ui`. Iconos con **Material Icons** autoalojados (`@fontsource/material-icons`, ligaduras en `<mat-icon>`). Sin Google Fonts: la CSP no admite orígenes externos (ADR-0012).
+- Utilidades Tailwind: `vm-titulo-pagina`, `vm-titulo-seccion`, `vm-cuerpo`, `vm-etiqueta`, `vm-kpi` (en `src/styles/tailwind.css`, que va separado de `styles.scss` porque Tailwind 4 no admite Sass).
 - Escala: título de página 28/36 semibold, sección 20/28 semibold, cuerpo 14/20, etiquetas 12/16 medium, KPI 32/40 bold con `font-variant-numeric: tabular-nums`.
 
 ### 3.3 Componentes base (`shared/ui`)
@@ -111,7 +125,9 @@ Build separado (`ng build widget`) que produce un único `widget.js` (< 80 KB gz
 
 - Access token en memoria (signal), nunca en `localStorage`; refresh por cookie httpOnly.
 - Interceptor con reintento único tras refresh y cierre de sesión en 401 persistente.
-- CSP estricta servida por Nginx (`default-src 'self'; connect-src 'self' wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'` solo si Material lo exige, revisar con nonce).
+- Mismo origen: el panel llama solo a rutas relativas `/api/v1/...` (Nginx del contenedor `web` o `proxy.conf.json` en `ng serve` hacen de proxy). Sin CORS para el panel.
+- CSP estricta por nonce (ADR-0012), única fuente `infra/nginx-cabeceras-panel.conf`: `default-src 'self'; script-src 'self'; style-src 'self' 'nonce-$request_id'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; require-trusted-types-for 'script'; trusted-types angular angular#bundler`. `index.html` lleva `<app-root ngCspNonce="__CSP_NONCE__">`, que Nginx sustituye por petición (`sub_filter`) y sirve con `Cache-Control: no-store`; producción usa `inlineCritical: false`. `npm run lint` ejecuta `scripts/verificar-csp.mjs` y `e2e/csp.spec.ts` comprueba 0 violaciones en Chromium.
+- API simulada (ADR-0013): los builds `mocks` (`npm run start:mocks`) y `e2e` sustituyen `src/environments/proveedores-entorno.ts` por `proveedores-entorno.mocks.ts`, que añade `apiSimuladaInterceptor` (solo `/api/v1/auth/*`, respuestas con `X-Api-Simulada: 1`) y el aviso "Modo simulado". `production` y `development` no empaquetan ese código.
 - Contenido de correos siempre en `iframe sandbox=""` con `srcdoc` saneado por el backend; sin `bypassSecurityTrust*`.
 - Formularios de secretos con `autocomplete="new-password"` y sin eco del valor.
 - Dependencias auditadas en CI (`npm audit --audit-level=high`).
@@ -120,5 +136,6 @@ Build separado (`ng build widget`) que produce un único `widget.js` (< 80 KB gz
 
 - ESLint con `angular-eslint` estricto, Prettier, `strictTemplates`, `noImplicitAny`.
 - Cobertura mínima 80 % en `core` y `shared`; e2e para los 5 flujos críticos.
-- Presupuestos de bundle en `angular.json`: inicial ≤ 600 KB, por ruta ≤ 250 KB.
+- Presupuestos de bundle en `angular.json`: inicial 500 kB aviso / 600 kB error (tamaño bruto), cualquier script ≤ 250 kB, estilos por componente 4 kB aviso / 8 kB error.
+- Verificación local: `cd frontend && npm run verificar` (lint + estilos + CSP, tsc de app y spec, Vitest con cobertura y umbral por directorio, build de producción, i18n al día); e2e con `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e`.
 - Lighthouse en CI (rendimiento ≥ 90, accesibilidad ≥ 95).

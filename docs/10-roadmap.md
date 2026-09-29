@@ -6,10 +6,10 @@ Cada épica se ejecuta con el flujo de orquestación de Claude Code (`/orquestar
 
 | # | Épica | Entregable | Agentes |
 |---|---|---|---|
-| E0.1 | Esqueleto backend | `uv` project, FastAPI, settings, logging, salud, Dockerfile, Compose con PostgreSQL | backend |
-| E0.2 | Base de datos autoconfigurable | Bootstrap (crear BD, advisory lock, Alembic programático, semillas), modelos SQLAlchemy de `03-modelo-de-datos.md` | backend, qa |
+| E0.1 ✅ | Esqueleto backend | `uv` project, FastAPI, settings, logging, salud, Dockerfile, Compose con PostgreSQL | backend |
+| E0.2 ✅ | Base de datos autoconfigurable | Bootstrap (crear BD, advisory lock, Alembic programático, semillas), modelos SQLAlchemy de `03-modelo-de-datos.md` | backend, qa |
 | E0.3 | Autenticación y RBAC | login/refresh/logout, Argon2id, roles, auditoría base, rate limit | backend, seguridad |
-| E0.4 | Esqueleto frontend | Angular 22 zoneless, shell Viamatica, tokens, login, guards, cliente OpenAPI | frontend |
+| E0.4 ✅ | Esqueleto frontend | Angular 22 zoneless, shell Viamatica, tokens, login, guards, cliente OpenAPI | frontend |
 | E0.5 | CI | Workflows de lint, pruebas, seguridad | qa |
 
 ## Fase 1 · MVP (semanas 2–6)

@@ -1,6 +1,6 @@
 # ADR-0004 · PostgreSQL como única dependencia con bootstrap automático
 
-**Estado:** Aceptada · 2026-09-28
+**Estado:** Aceptada · 2026-09-28 · Refinada por ADR-0008 (bootstrap como comando dedicado y roles) y ADR-0010 (esquemas de librerías)
 
 ## Contexto
 Requisito: "la base de datos se crea sola la primera vez al instanciar". Se busca el menor número de piezas de infraestructura para instalaciones on-premise y en nube.

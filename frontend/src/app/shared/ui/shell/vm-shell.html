@@ -1,0 +1,113 @@
+<button type="button" class="vm-saltar" (click)="enfocarContenido()" i18n="@@shell.saltar">
+  Saltar al contenido
+</button>
+
+<mat-toolbar class="vm-topbar">
+  @if (movil()) {
+    <button
+      type="button"
+      mat-icon-button
+      class="vm-topbar-boton"
+      aria-controls="vm-menu-lateral"
+      [attr.aria-expanded]="lateral.opened"
+      i18n-aria-label="@@shell.abrir_menu"
+      aria-label="Abrir menú de navegación"
+      (click)="abrirMenu()"
+    >
+      <mat-icon aria-hidden="true">menu</mat-icon>
+    </button>
+  }
+  <span class="vm-marca" i18n="@@shell.marca">Agente Correo</span>
+  <span class="vm-espaciador"></span>
+
+  @if (modoSimulado()) {
+    <span class="vm-aviso-simulado" role="status" i18n="@@shell.modo_simulado">Modo simulado</span>
+  }
+
+  <button
+    type="button"
+    mat-icon-button
+    class="vm-topbar-boton"
+    [attr.aria-pressed]="temaOscuro()"
+    i18n-aria-label="@@shell.tema_oscuro"
+    aria-label="Tema oscuro"
+    (click)="alternarTema.emit()"
+  >
+    <mat-icon aria-hidden="true">{{ temaOscuro() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+  </button>
+
+  <button
+    type="button"
+    mat-button
+    class="vm-topbar-boton vm-usuario"
+    [matMenuTriggerFor]="menuUsuario"
+    i18n-aria-label="@@shell.menu_usuario"
+    aria-label="Menú de usuario"
+  >
+    <mat-icon aria-hidden="true">account_circle</mat-icon>
+    <span class="vm-usuario-nombre">{{ usuario().nombre }}</span>
+  </button>
+  <mat-menu #menuUsuario="matMenu" xPosition="before">
+    <div class="vm-menu-cabecera">
+      <span class="vm-menu-nombre">{{ usuario().nombre }}</span>
+      <span class="vm-menu-detalle">{{ usuario().email }}</span>
+      <span class="vm-menu-detalle">{{ rolesVisibles() }}</span>
+    </div>
+    <button type="button" mat-menu-item (click)="cerrarSesion.emit()">
+      <mat-icon aria-hidden="true">logout</mat-icon>
+      <span i18n="@@shell.cerrar_sesion">Cerrar sesión</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>
+
+<mat-sidenav-container class="vm-contenedor" autosize>
+  <mat-sidenav
+    #lateral
+    id="vm-menu-lateral"
+    class="vm-sidebar"
+    [class.vm-sidebar-colapsada]="colapsadaEfectiva()"
+    [mode]="movil() ? 'over' : 'side'"
+    [opened]="!movil()"
+  >
+    <nav class="vm-nav" i18n-aria-label="@@shell.navegacion" aria-label="Navegación principal">
+      <ul class="vm-nav-lista">
+        @for (item of navegacion(); track item.ruta) {
+          <li>
+            <a
+              class="vm-nav-enlace"
+              [routerLink]="'/' + item.ruta"
+              routerLinkActive="vm-nav-activo"
+              ariaCurrentWhenActive="page"
+              [matTooltip]="item.etiqueta"
+              [matTooltipDisabled]="!colapsadaEfectiva()"
+              matTooltipPosition="right"
+              (click)="alNavegar()"
+            >
+              <mat-icon aria-hidden="true">{{ item.icono }}</mat-icon>
+              <span [class.vm-solo-lectores]="colapsadaEfectiva()">{{ item.etiqueta }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+    @if (!movil()) {
+      <button
+        type="button"
+        mat-icon-button
+        class="vm-colapsar"
+        aria-controls="vm-menu-lateral"
+        [attr.aria-expanded]="!colapsado()"
+        [attr.aria-label]="colapsado() ? etiquetaExpandir : etiquetaContraer"
+        (click)="alternarColapso.emit()"
+      >
+        <mat-icon aria-hidden="true">{{ colapsado() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+      </button>
+    }
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <main #contenido id="contenido-principal" class="vm-contenido" tabindex="-1">
+      <ng-content />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

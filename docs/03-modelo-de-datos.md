@@ -38,6 +38,7 @@ trabajos (procrastinate_*)   checkpoints (langgraph: checkpoints, checkpoint_blo
 | nombre | text | |
 | hash_password | text | Argon2id. Null si solo SSO. |
 | activo | bool | default true |
+| requiere_cambio_password | bool | default false; `true` para el admin inicial sembrado (E0.3 obliga a cambiarla en el primer login). |
 | mfa_secreto_cifrado | bytea | Fase 2 (TOTP) |
 | ultimo_acceso_en | timestamptz | |
 
@@ -45,7 +46,7 @@ trabajos (procrastinate_*)   checkpoints (langgraph: checkpoints, checkpoint_blo
 
 **`sesiones_refresh`**: id, usuario_id, hash_token (sha256), familia (uuid, para detectar reuso), expira_en, revocado_en, ip, user_agent. Rotación en cada refresh; reuso de un token revocado revoca toda la familia.
 
-**`auditoria`** (append-only, sin UPDATE/DELETE por permisos de rol de BD): id, ocurrido_en, actor_id, actor_tipo (`usuario`|`sistema`|`agente`), accion, entidad, entidad_id, detalle JSONB, ip, hash_previo (encadenado para detectar manipulación).
+**`auditoria`** (append-only, ADR-0009): id, **secuencia** (bigint identity, orden de la cadena), ocurrido_en (fijado por trigger), actor_id (sin FK, sobrevive al borrado del usuario), actor_tipo (`usuario`|`sistema`|`agente`), accion (`dominio.verbo`), entidad, entidad_id (text), detalle JSONB (redactado), ip (inet), hash_previo, **hash** (sha256 calculado por trigger sobre `hash_previo` + fila canónica). Triggers impiden UPDATE/DELETE/TRUNCATE incluso al propietario; `agente_app` no tiene esos privilegios. Excepción a la convención: sin `creado_en`/`actualizado_en` (usa `ocurrido_en`).
 
 ### 2.2 Proveedores y secretos
 
@@ -124,7 +125,7 @@ trabajos (procrastinate_*)   checkpoints (langgraph: checkpoints, checkpoint_blo
 | version_prompt_activa_id | uuid FK | |
 | habilitado | bool | |
 
-**`versiones_prompt`**: id, agente_id, numero int, prompt_sistema text, preguntas_jev JSONB (para agentes `decision`: mapa de `Noul/Choice/Score`), esquema_salida JSONB, notas, creado_por, creado_en, publicado_en. Inmutable una vez publicada; se crea una nueva versión por cada cambio. UNIQUE (agente_id, numero).
+**`versiones_prompt`**: id, agente_id, numero int, prompt_sistema text, preguntas_jev JSONB (para agentes `decision`: mapa de `Noul/Choice/Score`), esquema_salida JSONB, notas, creado_por, creado_en, publicado_en. Inmutable una vez publicada; se crea una nueva versión por cada cambio. UNIQUE (agente_id, numero) y UNIQUE (id, agente_id). Un trigger rechaza UPDATE de contenido (`numero`, `prompt_sistema`, `preguntas_jev`, `esquema_salida`), despublicar o DELETE de versiones publicadas. `agentes.version_prompt_activa_id` usa FK compuesta `(version_prompt_activa_id, id) → versiones_prompt(id, agente_id)` para que la versión activa pertenezca al mismo agente.
 
 **`ejecuciones_agente`**: id, agente_id, version_prompt_id, mensaje_id (nullable), turno_chat_id (nullable), origen (`correo`|`webchat`|`playground`), estado (`ok`|`error`|`interrumpida`), entrada JSONB (redactada), salida JSONB, inicio_en, fin_en, duracion_ms, error, traza_otel_id.
 
@@ -154,8 +155,8 @@ trabajos (procrastinate_*)   checkpoints (langgraph: checkpoints, checkpoint_blo
 
 ## 3. Tablas gestionadas por librerías
 
-- `procrastinate_jobs`, `procrastinate_events`, `procrastinate_periodic_defers` (esquema propio de procrastinate, aplicado en el arranque).
-- `checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations` (LangGraph). Se ubican en el esquema `langgraph` para separarlas.
+- `procrastinate_jobs`, `procrastinate_events`, `procrastinate_periodic_defers`, `procrastinate_workers` en el esquema `procrastinate`, versionado por una revisión Alembic con el SQL de la versión fijada (ADR-0010).
+- `checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations` (LangGraph) en el esquema `langgraph`, creadas por `AsyncPostgresSaver.setup()` durante el bootstrap (ADR-0010).
 
 ## 4. Índices y rendimiento
 
@@ -179,4 +180,19 @@ trabajos (procrastinate_*)   checkpoints (langgraph: checkpoints, checkpoint_blo
 | `agente_migrador` | DDL; usado solo durante `alembic upgrade`. |
 | `agente_lectura` | SELECT para BI/auditoría externa. |
 
-En MVP, con `DB_AUTO_CREATE=true`, el arranque crea la base y usa un solo rol; la separación se activa con `DB_ROLES_SEPARADOS=true` en producción.
+Los roles los crea el DBA o el script de inicialización del contenedor `db` con `infra/sql/roles.sql`; el bootstrap no crea roles. En desarrollo y pruebas puede usarse un solo rol (`DB_ROLES_SEPARADOS=false`); con `ENV=production`, `DB_ROLES_SEPARADOS=true` es obligatorio, `DB_AUTO_CREATE=true` está prohibido y el bootstrap verifica los privilegios del rol de aplicación antes de terminar (ADR-0008). Privilegios por esquema concedidos explícitamente en cada migración (ADR-0010).
+
+## 7. Entrega por épicas
+
+| Épica | Tablas |
+|---|---|
+| E0.2 | `usuarios`, `roles`, `usuarios_roles`, `auditoria`, `configuracion`, `proveedores_ia`, `agentes`, `versiones_prompt`, `taxonomias`, `categorias`; esquemas `procrastinate` y `langgraph`. |
+| E0.3 | `sesiones_refresh`. |
+| E1.2 | `credenciales_proveedor`. |
+| E1.3 | `cuentas_correo`, `carpetas_correo`, `mensajes`, `adjuntos_meta`. |
+| E1.4 | `clasificaciones`, `ejecuciones_agente`, `llamadas_llm`, `acciones_categoria`. |
+| E1.6 | `borradores`, `aprobaciones`. |
+| E1.8 | `sesiones_playground`. |
+| E1.10 | `mv_metricas_diarias`. |
+| E1.11 | `sitios_webchat`, `sesiones_chat`, `turnos_chat`. |
+| Fase 2 | `dataset_evaluacion`, particionado. |

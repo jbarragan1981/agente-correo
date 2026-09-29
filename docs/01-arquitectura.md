@@ -152,17 +152,20 @@ Detalles en `05-agentes-y-proveedores.md` y ADR-0002 / ADR-0003.
 4. Si la intención es "hablar con humano" o el riesgo es alto, se crea un ticket y se corta la generación automática.
 5. La sesión se persiste con TTL configurable; el operador puede verla en el panel.
 
-## 8. Arranque automático de la base de datos (ADR-0004)
+## 8. Arranque automático de la base de datos (ADR-0004, ADR-0008, ADR-0010)
 
-Al iniciar `api` o `worker`:
+El bootstrap es el comando idempotente `python -m app.bootstrap`. En Compose lo ejecuta el servicio one-shot `migrador` con las credenciales de `agente_migrador`; `api` y `worker` arrancan después (`service_completed_successfully`) y se conectan como `agente_app`, sin privilegios DDL. En desarrollo lo ejecuta `make dev` (`make bootstrap`).
 
-1. Espera a que PostgreSQL acepte conexiones (backoff exponencial, máx. 60 s).
-2. Si la base indicada en `DATABASE_URL` no existe y `DB_AUTO_CREATE=true`, se conecta a `postgres` y ejecuta `CREATE DATABASE`.
-3. Toma un advisory lock (`pg_advisory_lock(0xA6E17E)`) para que un solo proceso migre.
-4. Ejecuta `alembic upgrade head` de forma programática.
-5. Ejecuta el setup del checkpointer de LangGraph (`AsyncPostgresSaver.setup()`).
-6. Siembra datos mínimos idempotentes: roles, usuario admin inicial (contraseña generada y mostrada una sola vez en logs si no se define `ADMIN_INITIAL_PASSWORD`), agentes por defecto con sus prompts v1, taxonomía base.
-7. Libera el lock y arranca.
+1. Espera a que PostgreSQL acepte conexiones (backoff exponencial, máx. `DB_ESPERA_MAX_S`, 60 s por defecto).
+2. Si la base indicada no existe y `DB_AUTO_CREATE=true` (prohibido con `ENV=production`), se conecta a `postgres` y ejecuta `CREATE DATABASE`.
+3. Toma `pg_try_advisory_lock(0xA6E17E)` con reintentos hasta `DB_BOOTSTRAP_LOCK_TIMEOUT_S` para que un solo proceso migre.
+4. Ejecuta `alembic upgrade head` de forma programática (driver psycopg): extensiones, esquemas `langgraph` y `procrastinate`, tablas propias y esquema versionado de procrastinate.
+5. Ejecuta `AsyncPostgresSaver.setup()` en el esquema `langgraph` y concede privilegios al rol de aplicación.
+6. Con `DB_ROLES_SEPARADOS=true` (obligatorio en producción), verifica que el rol de la aplicación no es superusuario, no tiene DDL ni `UPDATE`/`DELETE` sobre `auditoria`; si no, falla cerrado.
+7. Siembra datos mínimos idempotentes: roles, usuario admin inicial si `usuarios` está vacía (contraseña aleatoria escrita una sola vez en `stderr`, fuera del log estructurado, si no se define `ADMIN_INITIAL_PASSWORD`; cambio obligatorio en el primer login), proveedores deshabilitados, taxonomía base, agentes por defecto con su prompt v1 publicado y configuración por defecto. Cada inserción efectiva deja auditoría.
+8. Libera el lock y termina con código 0 (1 configuración inválida, 2 fallo de bootstrap).
+
+La readiness (`/api/v1/salud/listo`) incluye la sonda `migraciones`: `alembic_version` de la base debe coincidir con la revisión `head` del código.
 
 ## 9. Decisiones registradas (ADR)
 
@@ -174,3 +177,10 @@ Al iniciar `api` o `worker`:
 | 0004 | PostgreSQL única dependencia; auto-creación, migración y cola nativa. |
 | 0005 | Angular 22 zoneless + signals + Angular Material + Tailwind con tokens Viamatica. |
 | 0006 | Secretos con cifrado envelope (AES-256-GCM) y clave maestra fuera de la base. |
+| 0007 | Configuración validada con pydantic-settings: fallo cerrado en producción, sin eco de valores en errores, `extra="ignore"` y fábrica `crear_app`. |
+| 0008 | Bootstrap de BD como comando dedicado (`python -m app.bootstrap`, servicio `migrador`), roles separados obligatorios en producción, `DB_AUTO_CREATE` prohibido en producción, admin inicial con contraseña mostrada una vez en `stderr`. |
+| 0009 | Auditoría append-only con `secuencia`, hash encadenado calculado por trigger, triggers de inmutabilidad y `REVOKE` al rol de aplicación. |
+| 0010 | procrastinate en esquema `procrastinate` versionado por Alembic (SQL copiado), checkpointer en esquema `langgraph` vía `setup()`, bootstrap con driver psycopg y privilegios explícitos por esquema. |
+| 0011 | Pruebas de integración con PostgreSQL efímero: `PRUEBAS_PG_DSN`, Docker (testcontainers) o binarios locales con clúster temporal; nunca `skip`. |
+| 0012 | Panel en el mismo origen que la API (proxy `/api/`), CSP estricta con nonce de estilos por petición (`sub_filter` + `ngCspNonce`), Trusted Types, `connect-src 'self'` y fuentes autoalojadas. |
+| 0013 | Cliente de API generado con `ng-openapi-gen` desde una instantánea versionada del OpenAPI exportada con la fábrica del backend; API simulada incluida solo por configuración de build (`mocks`, `e2e`). |
