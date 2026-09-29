@@ -579,4 +579,64 @@ Evidencia local (Nginx 1.24 de Ubuntu, configuración real del repositorio con r
 
 ## 10. Cierre y revisión de seguridad
 
-_Pendiente._
+Revisión del agente `seguridad` el 2026-09-29 sobre la rama con E0.4 commiteada (hasta `b9448e3`). Marco: `docs/07-seguridad.md` §5-6, ADR-0012, ADR-0013, ASVS 4.0 N2 (V3, V5, V8, V14). Node 22.23.3 vía `npx -y -p node@22.23.3 --`.
+
+### 10.1 Herramientas
+
+| Comando | Resultado |
+|---|---|
+| `npm audit --audit-level=high` | `found 0 vulnerabilities`, rc 0. |
+| `npm run verificar` | rc 0: lint 0 errores/avisos, `verificar-estilos` 81 archivos sin hallazgos, `verificar-csp` correcta, prettier correcto, tsc app y spec, Vitest 27 archivos y 411 pruebas, cobertura sentencias 97,72 %, ramas 92,96 %, líneas 98,23 %; build de producción con inicial 341,46 kB (95,53 kB transferidos); i18n 81 mensajes al día. |
+| `npm run bundles:verificar` | `production` y `development` sin marcadores; `e2e` con `X-Api-Simulada`, `prueba-panel-local`, `@viamatica.test`. rc 0. |
+| `npm ls --depth=0` y análisis de `package-lock.json` | 32 dependencias directas con versión exacta; lockfile v3, 622 paquetes, todos con `integrity` y resueltos desde `registry.npmjs.org`. Scripts de instalación: `esbuild`, `lmdb`, `msgpackr-extract`, `@parcel/watcher`, `fsevents` (conocidos, R11). Licencias permisivas; MPL-2.0 solo en `axe-core` y `lightningcss` (desarrollo). `@eslint/js` 10.0.1 (MIT) y `ng-openapi-gen` 1.1.0 (MIT) sin avisos. |
+| `uvx semgrep@1.178.0 --config p/typescript --config p/owasp-top-ten --error frontend/src` | **No ejecutado**: el proxy devuelve 403 a `semgrep.dev` (`Tunnel connection failed: 403 Forbidden`), como en E0.1 y E0.2. Sustituido por revisión manual y la búsqueda de APIs peligrosas de 10.2. |
+| `gitleaks` | No instalado. Búsqueda de credenciales por patrón: solo la contraseña simulada `prueba-panel-local` en archivos `*.spec.ts` (usuarios `.test`, documentada en ADR-0013). |
+| Contraste AA | Recalculado de forma independiente para 18 pares en claro y oscuro: mínimo 4,89 (`--vm-exito-texto` sobre `--vm-gris-fondo`). Cumple. |
+
+### 10.2 Checklist
+
+| Punto | Estado | Evidencia |
+|---|---|---|
+| Access token solo en memoria | OK | `_token` privado del `signalStore` (`sesion.store.ts:15-27`); sin `localStorage`/`sessionStorage`/`indexedDB`/`document.cookie`/`console` en `src/` salvo `preferencias-ui.ts` (claves `vm.*`); `ErrorApp` no transporta cabeceras; nunca en URL. |
+| Restauración y carrera con guards | OK con observación B2 | `provideAppInitializer` espera a `restaurar()` antes de la navegación inicial; los guards esperan `esperarRestauracion()`; límite de 5 s. |
+| Refresh único tras 401, sin bucles | OK | `refrescar()` single-flight; refresh y logout con `SIN_TOKEN` no pueden disparar otro refresh; `REINTENTADA` limita a un reintento. |
+| `Authorization` solo a `/api/` del mismo origen | OK | `esRutaApi` exige prefijo `/api/`; rutas públicas normalizadas (`auth.interceptor.ts:28-44`); `rootUrl` del cliente generado `''`. |
+| Guards y `?volver=` | OK | `rutaInternaSegura` rechaza `//`, `\`, esquemas y control tras decodificar; `navigateByUrl` no sale del origen. Guards documentados como UX (R8). |
+| XSS | OK (corrección aplicada) | Sin `innerHTML`, `bypassSecurityTrust*`, `[srcdoc]` ni Markdown; plantilla en línea única y estática (`app.ts`); Trusted Types solo con `angular` y `angular#bundler` (bloquea `angular#unsafe-bypass`). |
+| API simulada fuera de production/development | OK | Solo por `fileReplacements` (`mocks`, `e2e`); `MODO_SIMULADO` con valor por defecto `false`; sin activación por URL, storage ni variable en runtime; `bundles:verificar` y el `index.html` de producción revisado. |
+| CSP y cabeceras del panel | OK | Política idéntica a ADR-0012; nonce `$request_id` (16 bytes de `RAND_bytes`) por petición en `sub_filter`; `ngcspnonce` y `nonce` en scripts del `index.html` de producción; `connect-src`, `base-uri`, `form-action` `'self'`, `object-src 'none'`, `frame-ancestors 'none'`; nosniff, Referrer-Policy, Permissions-Policy, COOP, CORP, X-Frame-Options. HSTS la emite el reverse proxy con TLS (ADR-0012). |
+| Caché | OK (corrección aplicada) | `index.html` `no-store`; recursos con hash inmutables solo en respuestas correctas. |
+| Proxy `/api/` | Observaciones B1 y B3 | Límite 1 MB, WebSocket con `Upgrade`/`Connection`, sin cabeceras del panel. |
+| Imagen `web` | Observación M1 | `nginx-unprivileged`, `USER 101`, `read_only` con `tmpfs` en Compose; `.dockerignore` excluye `.env*`, `.git`, `.claude`, `e2e`, `coverage`. CA21 sigue pendiente con Docker. |
+| Errores `problem+json` | OK | Solo se interpreta `application/problem+json` validado; la UI muestra mensajes del catálogo; `detalle` no se pinta; en 5xx solo el UUID validado. Nombres de comprobaciones de `/salud/listo` interpolados con escape. |
+| `X-Request-ID` | OK | UUID v4 por petición y por reintento; el backend valida el formato (`correlacion.py:20-27`). |
+| Cadena de suministro | OK con observación M1 | Versiones exactas, `engine-strict`, `save-exact`, lockfile, `npm ci`. |
+| Secretos | OK | Sin secretos reales; `.env` no leído ni versionado. |
+| LLM, datos de correo, auditoría | N/A | La épica no toca agentes, correo ni mutaciones de negocio. |
+| Pruebas de seguridad | OK | Vectores de redirección (> 50), cadena HTTP con URLs externas, 401 persistente, límites del login, espías sobre storage y consola, CSP e2e. Pruebas 401/403 por endpoint: E0.3. |
+
+### 10.3 Hallazgos
+
+| ID | Severidad | Archivo:línea | Descripción e impacto | Corrección |
+|---|---|---|---|---|
+| M1 | Media | `infra/Dockerfile.web:3` y `:10` | La imagen de runtime usa `nginxinc/nginx-unprivileged:1.27-alpine`: la rama 1.27 (mainline 2024-2025) ya no recibe parches y el tag no está fijado por digest; el builder usa `node:22-alpine` flotante. Es el componente expuesto del panel y no hay escaneo de imagen (Trivy llega en E0.5). | Pasar a la rama estable vigente (`nginxinc/nginx-unprivileged:<estable>-alpine@sha256:…`) y fijar `node:22.23.3-alpine@sha256:…` (coherente con `.nvmrc`); ejecutar `nginx -t` y CA21 con esa imagen; Trivy en E0.5. |
+| B1 | Baja | `infra/nginx.conf:18` | `location /api/` es un prefijo sin `^~`: la `location` regex de recursos gana para `/api/…\.(js|css|woff2?|ico|svg|png|webp)`, que recibe un 404 local con cabeceras del panel y nunca llega a la API. Hoy no hay rutas así; rompería futuros endpoints (widget, adjuntos, avatares). El servidor e2e enruta `/api/` primero y no lo detecta. | `location ^~ /api/ {` y ajustar `bloqueLocation(conf, '^~ /api/ {')` en `frontend/scripts/verificar-csp.mjs:52`. |
+| B2 | Baja | `frontend/src/app/core/auth/sesion.store.ts:72-81` | `restaurar()` llama a `api.refrescar()` fuera del single-flight de `refrescar()`: un 401 durante la restauración lanzaría un segundo `POST /auth/refresh` con la misma cookie; con la rotación y detección de reuso de `docs/07` §2 revocaría la familia. Hoy no es alcanzable (el inicializador bloquea la navegación y no hay peticiones durante el arranque). | Que `restaurar()` reutilice la promesa compartida (`refreshEnCurso`) y convierta el resultado en `void`; prueba con un 401 concurrente a la restauración. En E0.3, ventana de gracia para refresh concurrente entre pestañas. |
+| B3 | Baja | `infra/nginx.conf:25-26` e `infra/docker-compose.yml` (`FORWARDED_ALLOW_IPS`) | Con el valor por defecto `127.0.0.1` la API ve la IP del contenedor `web` para todos los clientes: el rate limit y el bloqueo por IP de E0.3 agruparían a todos los usuarios (bloqueo colectivo). Si hay un terminador TLS delante, `X-Forwarded-Proto $scheme` enviará `http`. | Coordinar con E0.3/E0.5: confiar solo en la red del contenedor `web` en `FORWARDED_ALLOW_IPS`, y con proxy TLS delante usar `real_ip_header`/`set_real_ip_from` y reenviar el protocolo original. |
+| B4 | Baja (accesibilidad) | `frontend/src/app/shared/ui/shell/vm-shell.html:39-60` | BUG-01 de QA: Escape durante la animación de apertura del `mat-menu` deja el foco en `<body>` (WCAG 2.4.3). Sin impacto de seguridad; comportamiento de Material. | Issue de seguimiento; si persiste, en `(menuClosed)` devolver el foco al disparador cuando `document.activeElement === document.body`. |
+| B5 | Baja (proceso) | `.claude/agents/frontend.md:16`, `.claude/agents/qa.md:18` | Ordenan `npm run test -- --run`, que Angular 22 rechaza (`Unknown argument: run`); el skill `angular-viamatica:63` ya indica `npm run test:ci`/`npm run verificar`. Un agente que siga la definición puede dar por fallidas o saltarse las pruebas. Sin editar (lo decide el orquestador). | Sustituir por `npm run verificar` (o `make check-frontend`) y `npm run test:ci`. |
+| B6 | Baja (proceso) | `Makefile:42-45` | `make security` no ejecuta semgrep sobre `frontend/src` y lanza `npm audit` con el Node del sistema; semgrep sigue bloqueado por el proxy. | Añadir `uvx semgrep@$(SEMGREP_VERSION) --config p/typescript --config p/owasp-top-ten --error frontend/src` y usar `$(NPM_FRONT)`; ejecutarlo en CI (E0.5), donde `semgrep.dev` es accesible. |
+
+Sin hallazgos Altos ni Críticos.
+
+Notas informativas: la política de Trusted Types `angular#components` del CDK (usada por `MatIcon` con SVG y utilidades de `innerHTML` del CDK) no está permitida por la CSP; hoy no se ejecuta y, si se usa, falla cerrada: se decide en la épica que la necesite, igual que ECharts. El cierre de sesión en una pestaña no invalida el token en memoria de otras hasta su 401 (token de 15 min; `BroadcastChannel` opcional en E0.3).
+
+### 10.4 Correcciones aplicadas por seguridad (sin commit)
+
+- `frontend/eslint.config.js`: selector `Literal[value=/^(innerHTML|outerHTML|srcdoc)$/]` en `sintaxisProhibida`; cubre `Renderer2.setProperty(el, 'innerHTML', …)`, `el['innerHTML']` y `setAttribute('srcdoc', …)`, que la regla por `MemberExpression` no detectaba. Trusted Types ya lo bloqueaba en ejecución; ahora también el lint.
+- `infra/nginx.conf:34-35`: `Cache-Control: public, max-age=31536000, immutable` sin `always`, para que un 404 de un recurso durante un despliegue no quede cacheado un año. Coincide con `e2e/servidor-panel.mjs`, que ya solo lo enviaba en 200.
+- **Pendiente de confirmar:** `npm run lint` no se pudo volver a ejecutar tras estos cambios porque el clasificador de permisos no devolvió respuesta. La búsqueda en `src/`, `e2e/` y `scripts/` no encuentra ningún literal `'innerHTML'`, `'outerHTML'` ni `'srcdoc'`, así que la regla nueva no debería marcar nada. Aun así, hay que ejecutar `make check-frontend` antes del commit.
+
+### 10.5 Veredicto
+
+**APROBADO CON OBSERVACIONES.** M1 y B1 a B6 deben quedar como issues antes de abrir el PR. CA21 (imagen `web` con Docker) sigue pendiente y debe ejecutarse junto con la corrección de M1.

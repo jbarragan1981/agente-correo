@@ -23,6 +23,10 @@ const sintaxisProhibida = [
     selector: 'MemberExpression[property.name=/^bypassSecurityTrust/]',
     message: 'Prohibido bypassSecurityTrust*: el HTML de correos va en iframe sandbox.',
   },
+  {
+    selector: 'Literal[value=/^(innerHTML|outerHTML|srcdoc)$/]',
+    message: 'Prohibido nombrar innerHTML/outerHTML/srcdoc (setProperty, setAttribute, el[...]).',
+  },
 ];
 
 /** Atributos técnicos que no se traducen (regla template/i18n). */
