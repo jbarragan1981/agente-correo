@@ -33,7 +33,7 @@ def test_alembic_una_sola_head() -> None:
 
 
 def test_alembic_head_es_la_ultima_revision() -> None:
-    assert revision_head() == "0005_revocar_alembic_version"
+    assert revision_head() == "0006_revocar_migraciones_lg"
 
 
 def test_alembic_varias_heads_lanzan_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -46,6 +46,7 @@ def test_alembic_revisiones_en_cadena() -> None:
     script = ScriptDirectory.from_config(configuracion_alembic())
     cadena = [rev.revision for rev in script.walk_revisions()]
     assert cadena == [
+        "0006_revocar_migraciones_lg",
         "0005_revocar_alembic_version",
         "0004_procrastinate_3_10_0",
         "0003_config_agentes_taxonomia",

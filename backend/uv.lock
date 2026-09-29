@@ -2,6 +2,9 @@ version = 1
 revision = 3
 requires-python = "==3.12.*"
 
+[manifest]
+constraints = [{ name = "langsmith", specifier = ">=0.14.1" }]
+
 [[package]]
 name = "agente-correo-backend"
 version = "0.1.0"

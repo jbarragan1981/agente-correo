@@ -84,8 +84,12 @@ async def test_roles_app_hace_dml_en_los_tres_esquemas(
     await _bootstrap_separado(roles_separados)
     with _app(base_limpia, roles_separados) as conexion:
         conexion.execute("UPDATE configuracion SET descripcion = descripcion")
-        conexion.execute("INSERT INTO langgraph.checkpoint_migrations (v) VALUES (9999)")
-        conexion.execute("DELETE FROM langgraph.checkpoint_migrations WHERE v = 9999")
+        conexion.execute(
+            "INSERT INTO langgraph.checkpoints "
+            "(thread_id, checkpoint_ns, checkpoint_id, checkpoint, metadata) "
+            "VALUES ('hilo', '', 'c1', '{}'::jsonb, '{}'::jsonb)"
+        )
+        conexion.execute("DELETE FROM langgraph.checkpoints WHERE thread_id = 'hilo'")
         conexion.execute("SET search_path = procrastinate")
         ids = conexion.execute(ENCOLAR).fetchone()
         conexion.execute("DELETE FROM procrastinate_jobs")

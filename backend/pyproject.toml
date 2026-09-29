@@ -36,6 +36,9 @@ dev = [
 
 [tool.uv]
 package = false
+# langsmith es transitiva (langchain-core); se fija para que una re-resolución no vuelva a
+# versiones con CVE conocidos (S-B5, revisión de seguridad E0.2).
+constraint-dependencies = ["langsmith>=0.14.1"]
 
 [tool.ruff]
 target-version = "py312"

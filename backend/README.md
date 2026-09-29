@@ -23,7 +23,7 @@ La app se crea con la fábrica `app.main:crear_app` (siempre `--factory`); impor
 3. Toma `pg_try_advisory_lock(0xA6E17E)` hasta `DB_BOOTSTRAP_LOCK_TIMEOUT_S`.
 4. `alembic upgrade head` programático con psycopg: extensiones, esquemas `procrastinate` y `langgraph`, tablas propias y el SQL versionado de procrastinate 3.10.0 (`alembic/sql/procrastinate/`).
 5. `AsyncPostgresSaver.setup()` en el esquema `langgraph` y privilegios del rol de aplicación.
-6. Con `DB_ROLES_SEPARADOS=true`, verifica que el rol de `DATABASE_URL` no es superusuario, no tiene `CREATEROLE`/`CREATEDB`/`BYPASSRLS`, ni `CREATE` en la base o en `public`/`langgraph`/`procrastinate`, no es propietario de tablas ni tiene `UPDATE`/`DELETE`/`TRUNCATE` sobre `auditoria` ni DML sobre `alembic_version` (solo lectura, revisión 0005), y que el migrador no es superusuario. Si algo falla, termina con código 2 y la lista de comprobaciones (`bootstrap.privilegios_inseguros`). En rol único avisa con `bd.rol_unico`.
+6. Con `DB_ROLES_SEPARADOS=true`, verifica que el rol de `DATABASE_URL` no es superusuario, no tiene `CREATEROLE`/`CREATEDB`/`BYPASSRLS`, ni `CREATE` en la base o en `public`/`langgraph`/`procrastinate`, no es propietario de tablas ni tiene `UPDATE`/`DELETE`/`TRUNCATE` sobre `auditoria` ni DML sobre `alembic_version` (revisión 0005) ni sobre `langgraph.checkpoint_migrations` (revisión 0006), no es miembro (con o sin herencia) del migrador ni de `pg_execute_server_program`, `pg_read_server_files` o `pg_write_server_files`; y que el migrador no es superusuario ni tiene `CREATEROLE`, `CREATEDB`, `BYPASSRLS` o esos roles predefinidos. Si algo falla, termina con código 2 y la lista de comprobaciones (`bootstrap.privilegios_inseguros`). En rol único avisa con `bd.rol_unico`.
 7. Siembra roles, proveedores (deshabilitados), taxonomía base, agentes con su prompt v1 publicado, configuración y el admin inicial si no hay usuarios, con auditoría (`bd.migrada`, `bd.semillas_aplicadas`, `usuario.admin_inicial_creado`) en la misma transacción.
 
 Códigos de salida: `0` correcto, `1` configuración inválida (`config.invalida`), `2` fallo (`bootstrap.fallido` con `paso`, `tipo_error` y `sqlstate`, más el evento específico: `bootstrap.bd_no_disponible`, `bootstrap.autenticacion_rechazada`, `bootstrap.base_inexistente`, `bootstrap.nombre_base_invalido`, `bootstrap.lock_timeout`, `bootstrap.falta_url_migrador`, `bootstrap.privilegios_inseguros`, `bootstrap.admin_sin_email`). Ningún log incluye URL, usuario ni contraseña de la BD.
@@ -84,7 +84,7 @@ app/
 ├── agents/prompts/  prompts v1 (*.md) sembrados en versiones_prompt   providers/ (E1.1)
 ├── bootstrap.py     `python -m app.bootstrap` (composition root del bootstrap)
 └── main.py          crear_app()
-alembic/             env.py, versions/ (0001–0005), sql/procrastinate/<versión>_schema.sql
+alembic/             env.py, versions/ (0001–0006), sql/procrastinate/<versión>_schema.sql
 tests/
 ├── unit/            sin E/S (marcador `unit`)
 ├── api/             app ASGI con httpx y dependencias falsas (marcador `api`)

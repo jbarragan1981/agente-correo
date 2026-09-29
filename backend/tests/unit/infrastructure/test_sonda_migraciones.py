@@ -9,7 +9,7 @@ from sqlalchemy.exc import ProgrammingError
 from app.application.ports.salud import ResultadoSonda
 from app.infrastructure.db.sonda_migraciones import SondaMigraciones
 
-HEAD = "0005_revocar_alembic_version"
+HEAD = "0006_revocar_migraciones_lg"
 
 
 class _Resultado:

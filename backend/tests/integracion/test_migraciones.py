@@ -10,7 +10,9 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Connection, Engine, create_engine, pool
 
+from app.infrastructure.db.bootstrap.langgraph import preparar_checkpointer
 from app.infrastructure.db.bootstrap.migraciones import configuracion_alembic, revision_head
+from app.infrastructure.db.bootstrap.urls import url_psycopg
 from app.infrastructure.db.modelos import Base
 from tests.integracion.conftest import BasePrueba, RolesPrueba
 from tests.integracion.soporte_bd import TABLAS_PROPIAS, tablas_de
@@ -178,6 +180,25 @@ def test_migraciones_0005_revoca_y_su_downgrade_restituye_dml_en_alembic_version
     with base_limpia.conectar() as conexion:
         antes = conexion.execute(consulta).fetchone()
     _alembic(motor, "upgrade", "0005_revocar_alembic_version")
+    with base_limpia.conectar() as conexion:
+        tras_subir = conexion.execute(consulta).fetchone()
+    _alembic(motor, "downgrade", "-1")
+    with base_limpia.conectar() as conexion:
+        tras_bajar = conexion.execute(consulta).fetchone()
+    assert (antes, tras_subir, tras_bajar) == ((True,), (False,), (True,))
+
+
+async def test_migraciones_0006_revoca_y_su_downgrade_restituye_dml_en_checkpoint_migrations(
+    motor: Engine, base_limpia: BasePrueba, roles_separados: RolesPrueba
+) -> None:
+    consulta = (
+        "SELECT has_table_privilege('agente_app', 'langgraph.checkpoint_migrations', 'INSERT')"
+    )
+    _alembic(motor, "upgrade", "0005_revocar_alembic_version")
+    await preparar_checkpointer(url_psycopg(base_limpia.url()))
+    with base_limpia.conectar() as conexion:
+        antes = conexion.execute(consulta).fetchone()
+    _alembic(motor, "upgrade", "0006_revocar_migraciones_lg")
     with base_limpia.conectar() as conexion:
         tras_subir = conexion.execute(consulta).fetchone()
     _alembic(motor, "downgrade", "-1")
