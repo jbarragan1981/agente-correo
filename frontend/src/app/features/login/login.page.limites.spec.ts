@@ -4,7 +4,7 @@ import { Router, provideRouter } from '@angular/router';
 import { crearSesionPrueba } from '../../../testing/ayudas-http';
 import { AuthApi } from '../../core/auth/auth-api';
 import { SesionOut } from '../../core/auth/contrato-auth';
-import { LoginPage } from './login.page';
+import { LoginPage, MAX_LONGITUD_PASSWORD } from './login.page';
 
 /** Casos límite de QA sobre el formulario de login (CA11): doble envío, caracteres raros y longitudes. */
 describe('LoginPage · casos límite (QA)', () => {
@@ -128,21 +128,19 @@ describe('LoginPage · casos límite (QA)', () => {
     expect(raiz.querySelectorAll('img').length).toBe(0);
   });
 
-  it('contraseña de 100 000 caracteres → la página no se rompe (hoy se envía una vez, ver BUG-03)', async () => {
+  it('contraseña de 100 000 caracteres → la página no se rompe y muestra el error de longitud', async () => {
     await crear();
-    api.login.mockRejectedValue(new Error('x'));
     escribir('login-email', 'admin@viamatica.test');
     escribir('login-password', 'a'.repeat(100_000));
     enviarFormulario();
     await vaciarCola();
-    expect(api.login).toHaveBeenCalledTimes(1);
+    expect(raiz.querySelector('#login-password-error')?.textContent?.trim()).toBe(
+      'La contraseña no puede superar 1024 caracteres.',
+    );
   });
 
-  // BUG-03 (baja, refuerzo): la contraseña no tiene límite de longitud en el cliente; 100 000 caracteres
-  // viajan al servidor (que debe rechazarlos; nginx corta el cuerpo a 1 MB). El correo sí queda acotado por
-  // el validador de Angular (254). Corrección sugerida: `maxlength="1024"` en login.page.html y una regla
-  // `maxLength` en el esquema del formulario. Al corregirlo, quitar `.fails`.
-  it.fails('BUG-03: contraseña de 100 000 caracteres → no se envía', async () => {
+  // BUG-03 (corregido): regla maxLength en el esquema y maxlength en el control.
+  it('BUG-03: contraseña de 100 000 caracteres → no se envía', async () => {
     await crear();
     api.login.mockResolvedValue(crearSesionPrueba());
     escribir('login-email', 'admin@viamatica.test');
@@ -150,5 +148,33 @@ describe('LoginPage · casos límite (QA)', () => {
     enviarFormulario();
     await vaciarCola();
     expect(api.login).not.toHaveBeenCalled();
+  });
+
+  it(`contraseña de ${MAX_LONGITUD_PASSWORD + 1} caracteres → error enlazado con aria-describedby y aria-invalid`, async () => {
+    await crear();
+    escribir('login-email', 'admin@viamatica.test');
+    escribir('login-password', 'a'.repeat(MAX_LONGITUD_PASSWORD + 1));
+    enviarFormulario();
+    await vaciarCola();
+    const input = raiz.querySelector<HTMLInputElement>('#login-password');
+    expect([input?.getAttribute('aria-describedby'), input?.getAttribute('aria-invalid')]).toEqual([
+      'login-password-error',
+      'true',
+    ]);
+  });
+
+  it(`contraseña de exactamente ${MAX_LONGITUD_PASSWORD} caracteres → se envía`, async () => {
+    await crear();
+    api.login.mockResolvedValue(crearSesionPrueba());
+    escribir('login-email', 'admin@viamatica.test');
+    escribir('login-password', 'a'.repeat(MAX_LONGITUD_PASSWORD));
+    enviarFormulario();
+    await vaciarCola();
+    expect(api.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('el campo de contraseña declara maxlength 1024', async () => {
+    await crear();
+    expect(raiz.querySelector('#login-password')?.getAttribute('maxlength')).toBe('1024');
   });
 });

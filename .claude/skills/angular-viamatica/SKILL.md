@@ -56,7 +56,7 @@ Sin Material; Shadow DOM (`ViewEncapsulation.ShadowDom`); un solo bundle `widget
 
 ## Verificación antes de terminar
 ```
-cd frontend && npm run verificar      # lint (+ estilos + CSP), tsc app/spec, vitest con cobertura, build producción, i18n
+cd frontend && npm run verificar      # lint (+ estilos + CSP), prettier --check, tsc app/spec, vitest con cobertura, build producción, i18n
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e    # Playwright 1.56.1 (login, guards, shell, CSP, axe)
 npm run api:verificar                 # OpenAPI y cliente generado al día (requiere uv)
 ```

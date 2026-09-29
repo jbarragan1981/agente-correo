@@ -185,18 +185,32 @@ describe('cadena de interceptores HTTP (QA)', () => {
       },
     );
 
-    // BUG-02 (baja): RUTAS_SIN_TOKEN compara igualdad exacta y `/api/v1/auth/login/` (barra final)
-    // sí lleva Authorization. La aplicación nunca usa esa forma. Al corregirlo en
-    // core/auth/auth.interceptor.ts (comparar con la barra final normalizada), quitar `.fails`.
-    it.fails('BUG-02: ruta de login con barra final → sin Authorization', async () => {
-      await iniciarSesion();
-      const promesa = firstValueFrom(http.post(`${RUTAS_AUTH.login}/`, null)).catch(() => 0);
-      const peticion = tomar(`${RUTAS_AUTH.login}/`);
-      const lleva = peticion.request.headers.has('Authorization');
-      peticion.flush({});
-      await promesa;
-      expect(lleva).toBe(false);
-    });
+    // BUG-02 (corregido): la barra final se normaliza antes de comparar con las rutas públicas.
+    it.each([`${RUTAS_AUTH.login}/`, `${RUTAS_AUTH.refresh}//`, `${RUTAS_AUTH.logout}/?x=1`])(
+      '%s (barra final) → sin Authorization',
+      async (url) => {
+        await iniciarSesion();
+        const promesa = firstValueFrom(http.post(url, null)).catch(() => 0);
+        const peticion = tomar(url);
+        const lleva = peticion.request.headers.has('Authorization');
+        peticion.flush({});
+        await promesa;
+        expect(lleva).toBe(false);
+      },
+    );
+
+    it.each(['/api/v1/cuentas/', `${RUTAS_AUTH.login}x`, `${RUTAS_AUTH.yo}/`])(
+      '%s → sigue llevando Authorization (la normalización no abre otras rutas)',
+      async (url) => {
+        await iniciarSesion();
+        const promesa = firstValueFrom(http.get(url)).catch(() => 0);
+        const peticion = tomar(url);
+        const lleva = peticion.request.headers.has('Authorization');
+        peticion.flush({});
+        await promesa;
+        expect(lleva).toBe(true);
+      },
+    );
   });
 
   describe('token fuera de URL y de cuerpos', () => {

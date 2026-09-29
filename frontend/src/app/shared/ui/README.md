@@ -6,20 +6,20 @@ Componentes presentacionales (`OnPush`, sin servicios inyectados): reciben estad
 
 Topbar, sidebar colapsable (256 px / 72 px con tooltips) y área de contenido. En móvil (`movil = true`, < 1024 px) la sidebar pasa a modo `over` y aparece el botón de menú. Incluye "Saltar al contenido" como primer elemento enfocable y el aviso "Modo simulado".
 
-| Entrada | Tipo | Descripción |
-|---|---|---|
-| `navegacion` | `EntradaMenu[]` (requerida) | `{ ruta, etiqueta, icono }` ya filtradas por rol. |
-| `usuario` | `UsuarioSesion` (requerida) | Nombre, correo y roles del menú de usuario. |
-| `colapsado` | `boolean` (requerida) | Sidebar colapsada en escritorio. |
-| `movil` | `boolean` | Modo `over` con botón de menú. |
-| `modoSimulado` | `boolean` | Muestra el aviso "Modo simulado". |
-| `temaOscuro` | `boolean` | Estado del conmutador de tema (`aria-pressed`). |
+| Entrada        | Tipo                        | Descripción                                       |
+| -------------- | --------------------------- | ------------------------------------------------- |
+| `navegacion`   | `EntradaMenu[]` (requerida) | `{ ruta, etiqueta, icono }` ya filtradas por rol. |
+| `usuario`      | `UsuarioSesion` (requerida) | Nombre, correo y roles del menú de usuario.       |
+| `colapsado`    | `boolean` (requerida)       | Sidebar colapsada en escritorio.                  |
+| `movil`        | `boolean`                   | Modo `over` con botón de menú.                    |
+| `modoSimulado` | `boolean`                   | Muestra el aviso "Modo simulado".                 |
+| `temaOscuro`   | `boolean`                   | Estado del conmutador de tema (`aria-pressed`).   |
 
-| Salida | Cuándo |
-|---|---|
-| `alternarColapso` | Botón de colapsar/expandir. |
-| `alternarTema` | Conmutador de tema. |
-| `cerrarSesion` | "Cerrar sesión" del menú de usuario. |
+| Salida            | Cuándo                               |
+| ----------------- | ------------------------------------ |
+| `alternarColapso` | Botón de colapsar/expandir.          |
+| `alternarTema`    | Conmutador de tema.                  |
+| `cerrarSesion`    | "Cerrar sesión" del menú de usuario. |
 
 ```html
 <vm-shell

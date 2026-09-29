@@ -24,6 +24,12 @@ function ruta(url: string): string {
   return url.split(/[?#]/, 1)[0] ?? url;
 }
 
+/** Ruta sin barras finales, para comparar con las rutas públicas (`/auth/login/` = `/auth/login`). */
+function rutaNormalizada(url: string): string {
+  const base = ruta(url);
+  return base.length > 1 ? base.replace(/\/+$/, '') : base;
+}
+
 function esRutaAuth(url: string): boolean {
   return ruta(url).startsWith('/api/v1/auth/');
 }
@@ -31,7 +37,9 @@ function esRutaAuth(url: string): boolean {
 /** ¿Se adjunta `Authorization` a esta petición? Solo rutas relativas `/api/` (CA7). */
 export function llevaToken(req: HttpRequest<unknown>): boolean {
   return (
-    esRutaApi(req.url) && !req.context.get(SIN_TOKEN) && !RUTAS_SIN_TOKEN.includes(ruta(req.url))
+    esRutaApi(req.url) &&
+    !req.context.get(SIN_TOKEN) &&
+    !RUTAS_SIN_TOKEN.includes(rutaNormalizada(req.url))
   );
 }
 

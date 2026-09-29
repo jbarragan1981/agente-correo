@@ -17,35 +17,35 @@ npm ci
 
 ## Modos de ejecución
 
-| Comando | Qué hace |
-|---|---|
-| `npm start` | `ng serve` con la API real vía `proxy.conf.json` (`/api` → `http://localhost:8000`). |
+| Comando               | Qué hace                                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm start`           | `ng serve` con la API real vía `proxy.conf.json` (`/api` → `http://localhost:8000`).                                                                                 |
 | `npm run start:mocks` | `ng serve --configuration mocks`: la autenticación la responde la **API simulada** y el shell muestra "Modo simulado". `/api/v1/salud*` sigue yendo al backend real. |
-| `npm run build` | Build de producción en `dist/panel/browser` (lo que copia `infra/Dockerfile.web`). |
+| `npm run build`       | Build de producción en `dist/panel/browser` (lo que copia `infra/Dockerfile.web`).                                                                                   |
 
 ### API simulada (solo `mocks` y `e2e`)
 
 Mientras E0.3 no publique la autenticación, el login funciona con un interceptor que solo se incluye en los builds `mocks` y `e2e` (`fileReplacements`; `production` y `development` no lo empaquetan). Usuarios de ejemplo, dominio reservado `.test`, contraseña común `prueba-panel-local`:
 
-| Correo | Rol |
-|---|---|
-| `admin@viamatica.test` | admin |
+| Correo                    | Rol      |
+| ------------------------- | -------- |
+| `admin@viamatica.test`    | admin    |
 | `operador@viamatica.test` | operador |
-| `auditor@viamatica.test` | auditor |
+| `auditor@viamatica.test`  | auditor  |
 
 Tras 5 fallos seguidos responde 429 con `Retry-After: 60`. El refresh siempre da 401 (no hay cookie real), así que recargar la página devuelve a `/login`. Estas credenciales no existen en el backend real.
 
 ## Scripts de calidad
 
-| Script | Qué hace |
-|---|---|
-| `npm run verificar` | Todo lo que ejecuta `make check-frontend`: Node, lint, tipos, pruebas con cobertura, build de producción e i18n. |
-| `npm run lint` | `ng lint` (0 avisos) + `scripts/verificar-estilos.mjs` (hex solo en `tokens.css`, sin `style=`, `!important` marcado, sin `[innerHTML]`) + `scripts/verificar-csp.mjs` (CSP de ADR-0012). |
-| `npm run typecheck` | `tsc --noEmit` de app y de pruebas. |
-| `npm run test` / `npm run test:ci` | Vitest en modo interactivo / una vez con cobertura (≥ 80 % global y en `core/` y `shared/`). |
-| `npm run i18n:extraer` / `npm run i18n:verificar` | Actualiza / comprueba `src/locale/messages.es.xlf`. Ejecuta `i18n:extraer` tras cambiar textos. |
-| `npm run e2e` | Playwright 1.56.1: `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e`. Compila el build `e2e` y lo sirve con `e2e/servidor-panel.mjs`, que reproduce las cabeceras y el nonce de Nginx. |
-| `API_DESTINO=http://127.0.0.1:8000 PUERTO=4301 npm run e2e -- --grep @backend` | e2e contra el backend real (arranca uvicorn con `ENV=test`). |
+| Script                                                                         | Qué hace                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verificar`                                                            | Todo lo que ejecuta `make check-frontend`: Node, lint, formato (`prettier --check .`), tipos, pruebas con cobertura, build de producción e i18n.                                             |
+| `npm run lint`                                                                 | `ng lint` (0 avisos) + `scripts/verificar-estilos.mjs` (hex solo en `tokens.css`, sin `style=`, `!important` marcado, sin `[innerHTML]`) + `scripts/verificar-csp.mjs` (CSP de ADR-0012).    |
+| `npm run typecheck`                                                            | `tsc --noEmit` de app y de pruebas.                                                                                                                                                          |
+| `npm run test` / `npm run test:ci`                                             | Vitest en modo interactivo / una vez con cobertura (≥ 80 % global y en `core/` y `shared/`).                                                                                                 |
+| `npm run i18n:extraer` / `npm run i18n:verificar`                              | Actualiza / comprueba `src/locale/messages.es.xlf`. Ejecuta `i18n:extraer` tras cambiar textos.                                                                                              |
+| `npm run e2e`                                                                  | Playwright 1.56.1: `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e`. Compila el build `e2e` y lo sirve con `e2e/servidor-panel.mjs`, que reproduce las cabeceras y el nonce de Nginx. |
+| `API_DESTINO=http://127.0.0.1:8000 PUERTO=4301 npm run e2e -- --grep @backend` | e2e contra el backend real (arranca uvicorn con `ENV=test`).                                                                                                                                 |
 
 ## Cliente de API (ADR-0013)
 

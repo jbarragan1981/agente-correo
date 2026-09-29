@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { iniciarSesion, simularSaludListo } from './ayudas';
+import { enviarLogin, iniciarSesion, simularSaludListo } from './ayudas';
 
 test.describe('shell (CA12)', () => {
   test.beforeEach(async ({ page }) => {
@@ -23,7 +23,10 @@ test.describe('shell (CA12)', () => {
 
   test('ancho < 1024 px → menú en modo over con botón en el topbar', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 900 });
-    await iniciarSesion(page, 'admin', '/login').catch(() => undefined);
+    // En móvil la navegación está dentro del drawer cerrado: se espera a la URL y al botón de menú.
+    await page.goto('/login');
+    await enviarLogin(page, 'admin');
+    await expect(page).toHaveURL('/inicio');
     const boton = page.getByRole('button', { name: 'Abrir menú de navegación' });
     await expect(boton).toHaveAttribute('aria-expanded', 'false');
     await boton.click();

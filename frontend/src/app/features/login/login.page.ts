@@ -17,9 +17,13 @@ import {
   correo,
   form,
   primerError,
+  longitudMaxima,
   requerido,
   submit,
 } from '../../shared/forms/validadores';
+
+/** Longitud máxima de la contraseña que acepta el cliente (BUG-03). */
+export const MAX_LONGITUD_PASSWORD = 1024;
 
 /** Mensaje del error general del login; nunca distingue si falló el correo o la contraseña. */
 export function mensajeLogin(error: ErrorApp): string {
@@ -66,6 +70,11 @@ export class LoginPage {
     requerido(campos.email, $localize`:@@login.email_requerido:Escribe tu correo electrónico.`);
     correo(campos.email, $localize`:@@login.email_invalido:Escribe un correo electrónico válido.`);
     requerido(campos.password, $localize`:@@login.password_requerida:Escribe tu contraseña.`);
+    longitudMaxima(
+      campos.password,
+      MAX_LONGITUD_PASSWORD,
+      $localize`:@@login.password_larga:La contraseña no puede superar ${MAX_LONGITUD_PASSWORD}:maximo: caracteres.`,
+    );
   });
 
   protected readonly enviando = signal(false);

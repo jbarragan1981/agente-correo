@@ -174,13 +174,11 @@ describe('authInterceptor', () => {
 
     it('error distinto de 401 → no refresca', async () => {
       const promesa = pedir('/api/v1/a');
-      controlador
-        .expectOne('/api/v1/a')
-        .flush(cuerpoProblema('conflicto', 409), {
-          status: 409,
-          statusText: 'x',
-          headers: PROBLEMA,
-        });
+      controlador.expectOne('/api/v1/a').flush(cuerpoProblema('conflicto', 409), {
+        status: 409,
+        statusText: 'x',
+        headers: PROBLEMA,
+      });
       await promesa;
       controlador.expectNone(RUTAS_AUTH.refresh);
       expect(sesion.autenticada()).toBe(true);
